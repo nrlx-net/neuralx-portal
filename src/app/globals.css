@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --nrlx-bg: #0a0a0a;
+  --nrlx-surface: #111111;
+  --nrlx-card: #1a1a1a;
+  --nrlx-border: #2a2a2a;
+  --nrlx-accent: #00d4aa;
+  --nrlx-text: #e5e5e5;
+  --nrlx-muted: #888888;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--nrlx-bg);
+  color: var(--nrlx-text);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(0, 212, 170, 0.3);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--nrlx-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--nrlx-border);
+  border-radius: 3px;
+}
