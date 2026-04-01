@@ -21,10 +21,10 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (session?.accessToken) {
+    if (status === 'authenticated') {
       loadData()
     }
-  }, [session])
+  }, [status])
 
   async function loadData() {
     try {
@@ -32,8 +32,8 @@ export default function DashboardPage() {
       setError(null)
 
       const [cuentasRes, txnRes] = await Promise.all([
-        api.getCuentas(session!.accessToken!),
-        api.getTransacciones(session!.accessToken!),
+        api.getCuentas(),
+        api.getTransacciones(),
       ])
 
       setCuentas(cuentasRes.cuentas)
@@ -78,7 +78,7 @@ export default function DashboardPage() {
           Bienvenido, {session?.user?.name?.split(' ')[0]}
         </h1>
         <p className="text-[10px] font-mono text-nrlx-muted mt-0.5">
-          {session?.user?.upn}
+          {session?.user?.upn || session?.user?.email}
         </p>
       </div>
 
@@ -141,7 +141,7 @@ export default function DashboardPage() {
               </p>
               {cuenta.numero_cuenta && (
                 <p className="text-[10px] font-mono text-nrlx-muted mt-2">
-                  CLABE: {cuenta.numero_cuenta}
+                  {cuenta.numero_cuenta.startsWith('CH') ? 'IBAN' : 'CLABE'}: {cuenta.numero_cuenta}
                 </p>
               )}
               {cuenta.swift_code && (

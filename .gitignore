@@ -6,6 +6,7 @@ node_modules/
 next-env.d.ts
 *.zip
 neuralx-portal-update/
+neuralx-api-routes/
 neuralx-api/neuralx-api/.venv/
 __pycache__/
 *.pyc

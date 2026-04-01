@@ -1,15 +1,14 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+/**
+ * NeuralX Portal — API Client
+ * Calls local Next.js API routes (which connect to Azure SQL)
+ * Auth is handled server-side via NextAuth session.
+ */
 
-export async function apiFetch<T = any>(
-  endpoint: string,
-  token: string,
-  options?: RequestInit
-): Promise<T> {
-  const res = await fetch(`${API_URL}${endpoint}`, {
+async function apiFetch<T = any>(endpoint: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(endpoint, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
       ...options?.headers,
     },
   })
@@ -72,41 +71,59 @@ export interface TransaccionesResponse {
   total: number
 }
 
-// ============================================
-// API FUNCTIONS
-// ============================================
+// API FUNCTIONS — Local routes
 export const api = {
-  getMe: (token: string) =>
-    apiFetch<UsuarioSocio>('/api/me', token),
+  getMe: () =>
+    apiFetch<UsuarioSocio>('/api/me'),
 
-  getCuentas: (token: string) =>
-    apiFetch<CuentasResponse>('/api/cuentas', token),
+  getCuentas: (_token?: string) =>
+    apiFetch<CuentasResponse>('/api/cuentas'),
 
-  getTransacciones: (token: string, estatus?: string) =>
-    apiFetch<TransaccionesResponse>(
-      `/api/transacciones${estatus ? `?estatus=${estatus}` : ''}`,
-      token
-    ),
+  getTransacciones: (arg1?: string, arg2?: string) => {
+    const estatus = arg2 ?? arg1
+    return apiFetch<TransaccionesResponse>(
+      `/api/transacciones${estatus ? `?estatus=${estatus}` : ''}`
+    )
+  },
 
-  crearSolicitudRetiro: (token: string, monto: number, concepto?: string) =>
-    apiFetch('/api/solicitud-retiro', token, {
+  crearSolicitudRetiro: (arg1: string | number, arg2?: number | string, arg3?: string) => {
+    const monto = typeof arg1 === 'number' ? arg1 : Number(arg2 ?? 0)
+    const concepto = typeof arg1 === 'number' ? arg2 as string | undefined : arg3
+    return apiFetch('/api/solicitud-retiro', {
       method: 'POST',
       body: JSON.stringify({ monto, concepto }),
-    }),
+    })
+  },
 
   // Admin
-  adminGetUsuarios: (token: string) =>
-    apiFetch('/api/admin/usuarios', token),
+  adminResumen: () =>
+    apiFetch('/api/admin?view=resumen'),
 
-  adminGetCuentas: (token: string) =>
-    apiFetch('/api/admin/cuentas', token),
+  adminGetUsuarios: (_token?: string) =>
+    apiFetch('/api/admin?view=usuarios'),
 
-  adminGetSolicitudes: (token: string) =>
-    apiFetch('/api/admin/solicitudes-pendientes', token),
+  adminGetCuentas: (_token?: string) =>
+    apiFetch('/api/admin?view=cuentas'),
 
-  adminAprobar: (token: string, id: string) =>
-    apiFetch(`/api/admin/aprobar/${id}`, token, { method: 'POST' }),
+  adminGetSolicitudes: (_token?: string) =>
+    apiFetch('/api/admin?view=solicitudes'),
 
-  adminRechazar: (token: string, id: string) =>
-    apiFetch(`/api/admin/rechazar/${id}`, token, { method: 'POST' }),
+  adminGetCustodia: () =>
+    apiFetch('/api/admin?view=custodia'),
+
+  adminAprobar: (arg1: string, arg2?: string) => {
+    const id = arg2 ?? arg1
+    return apiFetch('/api/admin', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'aprobar', id_transaccion: id }),
+    })
+  },
+
+  adminRechazar: (arg1: string, arg2?: string) => {
+    const id = arg2 ?? arg1
+    return apiFetch('/api/admin', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'rechazar', id_transaccion: id }),
+    })
+  },
 }
