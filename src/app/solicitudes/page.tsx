@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar } from '../components/Sidebar'
-import { api, Transaccion } from '@/lib/api'
+import { api, Solicitud } from '@/lib/api'
 
 function formatMoney(amount: number, currency: string = 'MXN') {
   return new Intl.NumberFormat('es-MX', {
@@ -21,21 +21,20 @@ export default function SolicitudesPage() {
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [solicitudesPendientes, setSolicitudesPendientes] = useState<Transaccion[]>([])
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState<Solicitud[]>([])
 
   useEffect(() => {
-    if (session?.accessToken) {
+    if (status === 'authenticated') {
       loadSolicitudes()
     }
-  }, [session])
+  }, [status])
 
   async function loadSolicitudes() {
     try {
       setLoading(true)
       setError(null)
-      const res = await api.getTransacciones(session!.accessToken!, 'en curso')
-      const pendientes = res.transacciones.filter((t) => t.tipo_transaccion === 'saliente')
-      setSolicitudesPendientes(pendientes)
+      const res = await api.getSolicitudes('pendiente')
+      setSolicitudesPendientes(res.solicitudes)
     } catch (err: any) {
       setError(err.message || 'No se pudieron cargar las solicitudes')
     } finally {
@@ -45,17 +44,13 @@ export default function SolicitudesPage() {
 
   async function handleSubmit() {
     const montoNumber = Number(monto)
-    if (!montoNumber || montoNumber <= 0 || !session?.accessToken) return
+    if (!montoNumber || montoNumber <= 0) return
 
     try {
       setSubmitting(true)
       setError(null)
       setFeedback(null)
-      await api.crearSolicitudRetiro(
-        session.accessToken,
-        montoNumber,
-        concepto.trim() || undefined
-      )
+      await api.crearSolicitudRetiro(montoNumber, concepto.trim() || undefined)
       setFeedback('Solicitud enviada correctamente.')
       setMonto('')
       setConcepto('')
@@ -163,12 +158,12 @@ export default function SolicitudesPage() {
                 <div className="space-y-3">
                   {solicitudesPendientes.map((sol) => (
                     <div
-                      key={sol.id_transaccion}
+                      key={sol.id_solicitud}
                       className="bg-nrlx-card border border-nrlx-border/50 rounded-lg p-4"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <p className="text-[10px] font-mono text-nrlx-muted">
-                          {sol.id_transaccion}
+                          {sol.id_solicitud}
                         </p>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-nrlx-warning/10 text-nrlx-warning">
                           {sol.estatus}
@@ -179,7 +174,7 @@ export default function SolicitudesPage() {
                       </p>
                       <p className="text-xs text-nrlx-muted mt-1">{sol.concepto || '—'}</p>
                       <p className="text-[10px] font-mono text-nrlx-muted mt-2">
-                        {new Date(sol.fecha_hora).toLocaleDateString('es-MX')}
+                        {new Date(sol.fecha_solicitud).toLocaleDateString('es-MX')}
                       </p>
                     </div>
                   ))}

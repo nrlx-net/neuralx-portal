@@ -71,6 +71,27 @@ export interface TransaccionesResponse {
   total: number
 }
 
+export interface Solicitud {
+  id_solicitud: string
+  tipo: string
+  nxg_origen: string | null
+  nxg_destino: string | null
+  id_cuenta_banco: string | null
+  monto: number
+  moneda: string
+  concepto: string | null
+  estatus: string
+  comentario_admin: string | null
+  aprobado_por: string | null
+  fecha_solicitud: string
+  fecha_resolucion: string | null
+}
+
+export interface SolicitudesResponse {
+  solicitudes: Solicitud[]
+  total: number
+}
+
 // API FUNCTIONS — Local routes
 export const api = {
   getMe: () =>
@@ -95,6 +116,13 @@ export const api = {
     })
   },
 
+  getSolicitudes: (arg1?: string, arg2?: string) => {
+    const estatus = arg2 ?? arg1
+    return apiFetch<SolicitudesResponse>(
+      `/api/solicitudes${estatus ? `?estatus=${estatus}` : ''}`
+    )
+  },
+
   // Admin
   adminResumen: () =>
     apiFetch('/api/admin?view=resumen'),
@@ -115,7 +143,7 @@ export const api = {
     const id = arg2 ?? arg1
     return apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ action: 'aprobar', id_transaccion: id }),
+      body: JSON.stringify({ action: 'aprobar', id_solicitud: id }),
     })
   },
 
@@ -123,7 +151,7 @@ export const api = {
     const id = arg2 ?? arg1
     return apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ action: 'rechazar', id_transaccion: id }),
+      body: JSON.stringify({ action: 'rechazar', id_solicitud: id }),
     })
   },
 }

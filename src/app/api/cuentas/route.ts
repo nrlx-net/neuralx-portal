@@ -22,15 +22,25 @@ export async function GET() {
     const cuentasResult = await db.request()
       .input('userId', userId)
       .query(`
-        SELECT id_cuenta, banco, numero_cuenta, swift_code, moneda,
-               saldo_total, saldo_disponible, tipo_cuenta, icono_banco_url
-        FROM cuentas_bancarias
+        SELECT nxg_id, moneda, saldo_disponible, saldo_retenido
+        FROM cuentas_internas
         WHERE id_usuario = @userId
-        ORDER BY id_cuenta
+        ORDER BY nxg_id
       `)
 
-    const cuentas = cuentasResult.recordset
-    const total = cuentas.reduce((sum: number, c: any) => sum + parseFloat(c.saldo_total), 0)
+    const cuentas = cuentasResult.recordset.map((c: any) => ({
+      id_cuenta: c.nxg_id,
+      banco: 'NeuralX Internal',
+      numero_cuenta: c.nxg_id,
+      swift_code: null,
+      moneda: c.moneda || 'MXN',
+      saldo_total: Number(c.saldo_disponible || 0) + Number(c.saldo_retenido || 0),
+      saldo_disponible: Number(c.saldo_disponible || 0),
+      tipo_cuenta: 'Interna',
+      icono_banco_url: null,
+    }))
+
+    const total = cuentas.reduce((sum: number, c: any) => sum + Number(c.saldo_total || 0), 0)
 
     return NextResponse.json({
       cuentas,

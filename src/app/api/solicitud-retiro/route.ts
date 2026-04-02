@@ -26,48 +26,43 @@ export async function POST(request: Request) {
 
     const user = userResult.recordset[0]
 
-    const cuentaResult = await db.request()
+    const nxgResult = await db.request()
+      .input('userId', user.id_usuario)
+      .query('SELECT TOP 1 nxg_id FROM cuentas_internas WHERE id_usuario = @userId ORDER BY nxg_id')
+
+    if (nxgResult.recordset.length === 0) {
+      return NextResponse.json({ detail: 'Sin cuenta interna NXG registrada' }, { status: 400 })
+    }
+
+    const bancoResult = await db.request()
       .input('userId', user.id_usuario)
       .query('SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId ORDER BY id_cuenta')
 
-    if (cuentaResult.recordset.length === 0) {
+    if (bancoResult.recordset.length === 0) {
       return NextResponse.json({ detail: 'Sin cuenta bancaria registrada' }, { status: 400 })
     }
 
-    const idCuenta = cuentaResult.recordset[0].id_cuenta
-    const now = new Date()
-    const idTxn = `SOL-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+    const nxgOrigen = nxgResult.recordset[0].nxg_id
+    const idCuentaBanco = bancoResult.recordset[0].id_cuenta
 
-    await db.request()
-      .input('idTxn', idTxn)
-      .input('idCuenta', idCuenta)
+    const execResult = await db.request()
+      .input('id_usuario', user.id_usuario)
+      .input('nxg_origen', nxgOrigen)
+      .input('id_cuenta_banco', idCuentaBanco)
       .input('monto', monto)
-      .input('moneda', moneda)
-      .input('concepto', concepto || 'Solicitud de retiro')
-      .query(`
-        INSERT INTO transacciones
-          (id_transaccion, id_cuenta_origen, fecha_hora, monto, moneda,
-           tipo_transaccion, concepto, estatus)
-        VALUES (@idTxn, @idCuenta, SYSUTCDATETIME(), @monto, @moneda,
-                N'saliente', @concepto, N'en curso')
-      `)
+      .input('concepto', concepto || 'Retiro a cuenta bancaria')
+      .query('EXEC dbo.sp_solicitar_retiro_banco @id_usuario, @nxg_origen, @id_cuenta_banco, @monto, @concepto')
 
-    await db.request()
-      .input('userId', user.id_usuario)
-      .input('idTxn', idTxn)
-      .input('detalle', `Monto: ${monto} ${moneda}`)
-      .query(`
-        INSERT INTO audit_log (id_usuario, accion, tabla_afectada, registro_id, detalle)
-        VALUES (@userId, N'SOLICITUD_RETIRO', N'transacciones', @idTxn, @detalle)
-      `)
+    const result = execResult.recordset?.[0] || {}
+    const idSolicitud = result.id_solicitud || null
 
     return NextResponse.json({
-      exito: true,
-      id_solicitud: idTxn,
+      exito: result.exito ?? true,
+      id_solicitud: idSolicitud,
       monto,
       moneda,
-      estatus: 'en curso',
-      mensaje: 'Solicitud creada. Pendiente de aprobacion del administrador.',
+      estatus: 'pendiente',
+      mensaje: result.mensaje || 'Solicitud creada. Pendiente de aprobacion del administrador.',
     })
   } catch (err: any) {
     console.error('Error /api/solicitud-retiro:', err)

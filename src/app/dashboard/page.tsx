@@ -141,7 +141,7 @@ export default function DashboardPage() {
               </p>
               {cuenta.numero_cuenta && (
                 <p className="text-[10px] font-mono text-nrlx-muted mt-2">
-                  {cuenta.numero_cuenta.startsWith('CH') ? 'IBAN' : 'CLABE'}: {cuenta.numero_cuenta}
+                  {cuenta.numero_cuenta.startsWith('NXG-') ? 'NXG' : cuenta.numero_cuenta.startsWith('CH') ? 'IBAN' : 'CLABE'}: {cuenta.numero_cuenta}
                 </p>
               )}
               {cuenta.swift_code && (

@@ -24,25 +24,28 @@ export async function GET(request: Request) {
 
     const cuentasResult = await db.request()
       .input('userId', userId)
-      .query('SELECT id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId')
+      .query('SELECT nxg_id FROM cuentas_internas WHERE id_usuario = @userId')
 
     if (cuentasResult.recordset.length === 0) {
       return NextResponse.json({ transacciones: [], total: 0 })
     }
 
-    const cuentaIds = cuentasResult.recordset.map((c: any) => c.id_cuenta)
+    const cuentaIds = cuentasResult.recordset.map((c: any) => c.nxg_id)
+    const inOrigen = cuentaIds.map((_: any, i: number) => `@origen${i}`).join(',')
+    const inDestino = cuentaIds.map((_: any, i: number) => `@destino${i}`).join(',')
 
     let query = `
       SELECT TOP 50 id_transaccion, id_cuenta_origen, id_cuenta_destino,
              fecha_hora, monto, moneda, tipo_transaccion, concepto,
              estatus, referencia
       FROM transacciones
-      WHERE id_cuenta_origen IN (${cuentaIds.map((_: any, i: number) => `@cuenta${i}`).join(',')})
+      WHERE (id_cuenta_origen IN (${inOrigen}) OR id_cuenta_destino IN (${inDestino}))
     `
 
     const req = db.request()
     cuentaIds.forEach((id: string, i: number) => {
-      req.input(`cuenta${i}`, id)
+      req.input(`origen${i}`, id)
+      req.input(`destino${i}`, id)
     })
 
     if (estatus) {

@@ -13,38 +13,38 @@ export async function GET(request: Request) {
     const db = await getDb()
 
     if (view === 'usuarios') {
-      const result = await db.request().query('SELECT * FROM v_resumen_usuario')
+      const result = await db.request().query('SELECT * FROM v_dashboard_admin')
       return NextResponse.json(result.recordset)
     }
 
     if (view === 'cuentas') {
-      const result = await db.request().query('SELECT * FROM v_cuentas_detalle')
-      return NextResponse.json(result.recordset)
-    }
-
-    if (view === 'solicitudes') {
       const result = await db.request().query(`
-        SELECT t.*, u.nombre_completo, u.entra_id_upn
-        FROM transacciones t
-        JOIN cuentas_bancarias c ON t.id_cuenta_origen = c.id_cuenta
-        JOIN usuarios_socios u ON c.id_usuario = u.id_usuario
-        WHERE t.estatus = N'en curso' AND t.tipo_transaccion = N'saliente'
-        ORDER BY t.fecha_hora DESC
+        SELECT nxg_id, id_usuario, saldo_disponible, saldo_retenido, moneda, estatus, created_at, updated_at
+        FROM cuentas_internas
+        ORDER BY nxg_id
       `)
       return NextResponse.json(result.recordset)
     }
 
+    if (view === 'solicitudes') {
+      const result = await db.request().query('SELECT * FROM v_solicitudes_pendientes')
+      return NextResponse.json(result.recordset)
+    }
+
     if (view === 'custodia') {
-      const result = await db.request().query('SELECT * FROM v_custodia_distribucion')
+      const result = await db.request().query(`
+        SELECT id_custodia, saldo_total, saldo_asignado, saldo_disponible, moneda, updated_at
+        FROM cuenta_custodia
+      `)
       return NextResponse.json(result.recordset)
     }
 
     const [usuarios, custodia] = await Promise.all([
-      db.request().query('SELECT * FROM v_resumen_usuario'),
+      db.request().query('SELECT * FROM v_dashboard_admin'),
       db.request().query(`
-        SELECT FORMAT(saldo_total, 'N2') AS total,
-               FORMAT(saldo_asignado, 'N2') AS asignado,
-               FORMAT(saldo_disponible, 'N2') AS disponible
+        SELECT saldo_total AS total,
+               saldo_asignado AS asignado,
+               saldo_disponible AS disponible
         FROM cuenta_custodia WHERE id_custodia = N'CUSTODIA-001'
       `),
     ])
@@ -65,36 +65,51 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { action, id_transaccion } = body
+    const { action, id_solicitud, id_transaccion, comentario } = body
+    const solicitudId = id_solicitud || id_transaccion
 
-    if (!action || !id_transaccion) {
-      return NextResponse.json({ detail: 'Faltan action e id_transaccion' }, { status: 400 })
+    if (!action || !solicitudId) {
+      return NextResponse.json({ detail: 'Faltan action e id_solicitud' }, { status: 400 })
     }
 
     const db = await getDb()
+    const adminResult = await db.request()
+      .input('upn', upn)
+      .query('SELECT id_usuario FROM usuarios_socios WHERE entra_id_upn = @upn')
+
+    if (adminResult.recordset.length === 0) {
+      return NextResponse.json({ detail: 'Admin no encontrado en usuarios_socios' }, { status: 404 })
+    }
+
+    const idAdmin = adminResult.recordset[0].id_usuario
 
     if (action === 'aprobar') {
-      await db.request()
-        .input('id', id_transaccion)
-        .query("UPDATE transacciones SET estatus = N'completada' WHERE id_transaccion = @id")
-
-      await db.request()
-        .input('upn', upn)
-        .input('id', id_transaccion)
-        .query(`
-          INSERT INTO audit_log (id_usuario, accion, tabla_afectada, registro_id, detalle)
-          VALUES (@upn, N'APROBAR_RETIRO', N'transacciones', @id, N'Aprobado por admin')
-        `)
-
-      return NextResponse.json({ exito: true, id_transaccion, nuevo_estatus: 'completada' })
+      const execResult = await db.request()
+        .input('id_admin', idAdmin)
+        .input('id_solicitud', solicitudId)
+        .input('comentario', comentario || null)
+        .query('EXEC dbo.sp_aprobar_solicitud @id_admin, @id_solicitud, @comentario')
+      const data = execResult.recordset?.[0] || {}
+      return NextResponse.json({
+        exito: data.exito ?? true,
+        id_solicitud: data.id_solicitud || solicitudId,
+        id_transaccion: data.id_transaccion || null,
+        nuevo_estatus: data.nuevo_estatus || 'ejecutada',
+      })
     }
 
     if (action === 'rechazar') {
-      await db.request()
-        .input('id', id_transaccion)
-        .query("UPDATE transacciones SET estatus = N'cancelada' WHERE id_transaccion = @id")
-
-      return NextResponse.json({ exito: true, id_transaccion, nuevo_estatus: 'cancelada' })
+      const execResult = await db.request()
+        .input('id_admin', idAdmin)
+        .input('id_solicitud', solicitudId)
+        .input('comentario', comentario || null)
+        .query('EXEC dbo.sp_rechazar_solicitud @id_admin, @id_solicitud, @comentario')
+      const data = execResult.recordset?.[0] || {}
+      return NextResponse.json({
+        exito: data.exito ?? true,
+        id_solicitud: data.id_solicitud || solicitudId,
+        nuevo_estatus: data.nuevo_estatus || 'rechazada',
+      })
     }
 
     return NextResponse.json({ detail: 'Accion no valida. Usa: aprobar o rechazar' }, { status: 400 })
