@@ -4,14 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar } from '../components/Sidebar'
 import { api, CuentaBancaria } from '@/lib/api'
-
-function formatMoney(amount: number, currency: string = 'MXN') {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amount)
-}
+import { formatearMoneda } from '@/lib/balance'
 
 export default function CuentasPage() {
   const { data: session, status } = useSession()
@@ -20,16 +13,16 @@ export default function CuentasPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (session?.accessToken) {
+    if (status === 'authenticated') {
       loadData()
     }
-  }, [session])
+  }, [status])
 
   async function loadData() {
     try {
       setLoading(true)
       setError(null)
-      const res = await api.getCuentas(session!.accessToken!)
+      const res = await api.getCuentas()
       setCuentas(res.cuentas)
     } catch (err: any) {
       setError(err.message || 'No se pudieron cargar las cuentas')
@@ -52,7 +45,7 @@ export default function CuentasPage() {
   return (
     <div className="min-h-screen bg-nrlx-bg">
       <Sidebar />
-      <main className="lg:ml-64 min-h-screen">
+      <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
         <div className="p-6 lg:p-8 max-w-5xl">
           <div className="mb-8 pt-2 lg:pt-0">
             <h1 className="text-2xl font-medium text-nrlx-text">Cuentas internas</h1>
@@ -103,7 +96,7 @@ export default function CuentasPage() {
                       SALDO TOTAL
                     </p>
                     <p className="text-lg font-mono text-nrlx-text">
-                      {formatMoney(cuenta.saldo_total, cuenta.moneda)}
+                      {formatearMoneda(cuenta.saldo_total, cuenta.moneda)}
                     </p>
                   </div>
                   <div>
@@ -111,7 +104,7 @@ export default function CuentasPage() {
                       DISPONIBLE
                     </p>
                     <p className="text-lg font-mono text-nrlx-accent">
-                      {formatMoney(cuenta.saldo_disponible, cuenta.moneda)}
+                      {formatearMoneda(cuenta.saldo_disponible, cuenta.moneda)}
                     </p>
                   </div>
                   <div>

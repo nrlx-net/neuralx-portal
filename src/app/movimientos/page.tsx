@@ -4,14 +4,7 @@ import { useEffect, useState } from 'react'
 import { Sidebar } from '../components/Sidebar'
 import { useSession } from 'next-auth/react'
 import { api, Transaccion } from '@/lib/api'
-
-function formatMoney(amount: number, currency: string = 'USD') {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amount)
-}
+import { formatearMoneda } from '@/lib/balance'
 
 export default function MovimientosPage() {
   const { data: session, status } = useSession()
@@ -21,17 +14,16 @@ export default function MovimientosPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (session?.accessToken) {
+    if (status === 'authenticated') {
       loadData(filter)
     }
-  }, [session, filter])
+  }, [status, filter])
 
   async function loadData(currentFilter: string) {
     try {
       setLoading(true)
       setError(null)
       const res = await api.getTransacciones(
-        session!.accessToken!,
         currentFilter === 'todos' ? undefined : currentFilter
       )
       setTransacciones(res.transacciones)
@@ -45,7 +37,7 @@ export default function MovimientosPage() {
   return (
     <div className="min-h-screen bg-nrlx-bg">
       <Sidebar />
-      <main className="lg:ml-64 min-h-screen">
+      <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
         <div className="p-6 lg:p-8 max-w-5xl">
           <div className="flex items-end justify-between mb-8 pt-2 lg:pt-0">
             <div>
@@ -141,7 +133,7 @@ export default function MovimientosPage() {
                         }
                       >
                         {txn.tipo_transaccion === 'saliente' ? '-' : '+'}
-                        {formatMoney(txn.monto, txn.moneda)}
+                        {formatearMoneda(txn.monto, txn.moneda)}
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right">

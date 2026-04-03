@@ -12,7 +12,7 @@ export async function GET() {
       .input('upn', upn)
       .query(`
         SELECT id_usuario, nombre_completo, puesto, departamento,
-               email, entra_id_upn, estatus, fecha_conexion
+               email, entra_id_upn, estatus, fecha_conexion, created_at
         FROM usuarios_socios
         WHERE entra_id_upn = @upn
       `)

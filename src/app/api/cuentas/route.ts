@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { requireAuth } from '@/lib/auth-helpers'
+import { calcularBalanceConsolidado } from '@/lib/balance'
 
 export async function GET() {
   const { error, upn } = await requireAuth()
@@ -36,16 +37,23 @@ export async function GET() {
       moneda: c.moneda || 'MXN',
       saldo_total: Number(c.saldo_disponible || 0) + Number(c.saldo_retenido || 0),
       saldo_disponible: Number(c.saldo_disponible || 0),
+      saldo_retenido: Number(c.saldo_retenido || 0),
       tipo_cuenta: 'Interna',
       icono_banco_url: null,
     }))
 
-    const total = cuentas.reduce((sum: number, c: any) => sum + Number(c.saldo_total || 0), 0)
+    const balance = calcularBalanceConsolidado(
+      cuentasResult.recordset.map((c: any) => ({
+        saldo_disponible: Number(c.saldo_disponible || 0),
+        saldo_retenido: Number(c.saldo_retenido || 0),
+        moneda: c.moneda || 'MXN',
+      }))
+    )
 
     return NextResponse.json({
       cuentas,
       total_cuentas: cuentas.length,
-      saldo_consolidado: total,
+      saldo_consolidado: balance.total_mxn,
     })
   } catch (err: any) {
     console.error('Error /api/cuentas:', err)

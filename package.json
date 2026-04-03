@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "@next/font": "^14.2.0",
+    "lucide-react": "^1.7.0",
     "mssql": "^12.2.1",
+    "nanoid": "^5.1.7",
     "next": "^14.2.0",
     "next-auth": "^4.24.0",
     "react": "^18.3.0",

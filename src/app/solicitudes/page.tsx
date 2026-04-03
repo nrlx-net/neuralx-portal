@@ -3,58 +3,109 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar } from '../components/Sidebar'
-import { api, Solicitud } from '@/lib/api'
+import { api, CuentaBancaria, CuentaBancariaVinculada, Solicitud } from '@/lib/api'
+import { CheckCircle2, Clock3, RefreshCw, XCircle } from 'lucide-react'
+import { formatearMoneda } from '@/lib/balance'
 
-function formatMoney(amount: number, currency: string = 'MXN') {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amount)
-}
+type Tab = 'pendientes' | 'completadas' | 'rechazadas' | 'todas'
 
 export default function SolicitudesPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
+  const [cuentasInternas, setCuentasInternas] = useState<CuentaBancaria[]>([])
+  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancariaVinculada[]>([])
+  const [tab, setTab] = useState<Tab>('pendientes')
+  const [cuentaOrigen, setCuentaOrigen] = useState('')
+  const [cuentaDestino, setCuentaDestino] = useState('')
+  const [moneda, setMoneda] = useState('MXN')
   const [monto, setMonto] = useState('')
   const [concepto, setConcepto] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadingHistorial, setLoadingHistorial] = useState(true)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [solicitudesPendientes, setSolicitudesPendientes] = useState<Solicitud[]>([])
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
 
   useEffect(() => {
     if (status === 'authenticated') {
-      loadSolicitudes()
+      void loadInitialData()
     }
   }, [status])
 
-  async function loadSolicitudes() {
+  useEffect(() => {
+    if (status === 'authenticated') {
+      void loadSolicitudes(tab)
+    }
+  }, [tab, status])
+
+  async function loadInitialData() {
     try {
       setLoading(true)
       setError(null)
-      const res = await api.getSolicitudes('pendiente')
-      setSolicitudesPendientes(res.solicitudes)
+      const [internas, bancarias] = await Promise.all([
+        api.getCuentas(),
+        api.getCuentasBancariasVinculadas(),
+      ])
+      setCuentasInternas(internas.cuentas)
+      setCuentasBancarias(bancarias.cuentas)
+      if (internas.cuentas[0]) {
+        setCuentaOrigen(internas.cuentas[0].id_cuenta)
+        setMoneda(internas.cuentas[0].moneda || 'MXN')
+      }
+      if (bancarias.cuentas[0]) {
+        setCuentaDestino(bancarias.cuentas[0].id_cuenta)
+      }
+      await loadSolicitudes(tab)
     } catch (err: any) {
-      setError(err.message || 'No se pudieron cargar las solicitudes')
+      setError(err.message || 'No se pudo cargar la información inicial')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadSolicitudes(currentTab: Tab) {
+    try {
+      setLoadingHistorial(true)
+      const estatus =
+        currentTab === 'pendientes'
+          ? 'pendiente'
+          : currentTab === 'completadas'
+          ? 'ejecutada'
+          : currentTab === 'rechazadas'
+          ? 'rechazada'
+          : undefined
+      const res = await api.getSolicitudes(estatus)
+      setSolicitudes(res.solicitudes)
+    } catch (err: any) {
+      setError(err.message || 'No se pudo cargar el historial')
+    } finally {
+      setLoadingHistorial(false)
     }
   }
 
   async function handleSubmit() {
     const montoNumber = Number(monto)
     if (!montoNumber || montoNumber <= 0) return
+    if (!cuentaOrigen || !cuentaDestino) {
+      setError('Selecciona cuenta origen y cuenta destino')
+      return
+    }
 
     try {
       setSubmitting(true)
       setError(null)
       setFeedback(null)
-      await api.crearSolicitudRetiro(montoNumber, concepto.trim() || undefined)
+      await api.crearSolicitudRetiro({
+        monto: montoNumber,
+        concepto: concepto.trim() || undefined,
+        moneda,
+        nxg_origen: cuentaOrigen,
+        id_cuenta_banco: cuentaDestino,
+      })
       setFeedback('Solicitud enviada correctamente.')
       setMonto('')
       setConcepto('')
-      await loadSolicitudes()
+      await loadSolicitudes(tab)
     } catch (err: any) {
       setError(err.message || 'No se pudo crear la solicitud')
     } finally {
@@ -65,12 +116,12 @@ export default function SolicitudesPage() {
   return (
     <div className="min-h-screen bg-nrlx-bg">
       <Sidebar />
-      <main className="lg:ml-64 min-h-screen">
+      <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
         <div className="p-6 lg:p-8 max-w-5xl">
           <div className="mb-8 pt-2 lg:pt-0">
             <h1 className="text-2xl font-medium text-nrlx-text">Solicitudes</h1>
             <p className="text-xs text-nrlx-muted mt-1">
-              Solicitar retiro o transferencia a cuenta bancaria
+              Retiros y transferencias sujetas a aprobación administrativa
             </p>
           </div>
 
@@ -88,11 +139,32 @@ export default function SolicitudesPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-nrlx-surface border border-nrlx-border rounded-xl p-6">
-              <h2 className="text-xs font-mono text-nrlx-muted tracking-wider mb-6">
-                NUEVA SOLICITUD DE RETIRO
+              <h2 className="text-xs font-mono text-nrlx-muted tracking-wider mb-4">
+                NUEVA SOLICITUD
               </h2>
 
               <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-mono text-nrlx-muted tracking-wider block mb-1.5">
+                    CUENTA ORIGEN
+                  </label>
+                  <select
+                    value={cuentaOrigen}
+                    onChange={(e) => {
+                      setCuentaOrigen(e.target.value)
+                      const selected = cuentasInternas.find((c) => c.id_cuenta === e.target.value)
+                      if (selected?.moneda) setMoneda(selected.moneda)
+                    }}
+                    className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-sm text-nrlx-text focus:border-nrlx-accent/40 focus:outline-none"
+                  >
+                    {cuentasInternas.map((cuenta) => (
+                      <option key={cuenta.id_cuenta} value={cuenta.id_cuenta}>
+                        {cuenta.id_cuenta} · {cuenta.moneda}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="text-[10px] font-mono text-nrlx-muted tracking-wider block mb-1.5">
                     MONTO
@@ -102,8 +174,25 @@ export default function SolicitudesPage() {
                     value={monto}
                     onChange={(e) => setMonto(e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-nrlx-text font-mono text-lg placeholder:text-nrlx-muted/40 focus:border-nrlx-accent/40 focus:outline-none transition-colors"
+                    className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-nrlx-text font-mono text-3xl text-center placeholder:text-nrlx-muted/40 focus:border-nrlx-accent/40 focus:outline-none transition-colors"
                   />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-mono text-nrlx-muted tracking-wider block mb-1.5">
+                    MONEDA
+                  </label>
+                  <select
+                    value={moneda}
+                    onChange={(e) => setMoneda(e.target.value)}
+                    className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-sm text-nrlx-text focus:border-nrlx-accent/40 focus:outline-none"
+                  >
+                    {['MXN', 'USD', 'EUR', 'GBP', 'CHF'].map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -119,6 +208,23 @@ export default function SolicitudesPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="text-[10px] font-mono text-nrlx-muted tracking-wider block mb-1.5">
+                    CUENTA DESTINO BANCARIA
+                  </label>
+                  <select
+                    value={cuentaDestino}
+                    onChange={(e) => setCuentaDestino(e.target.value)}
+                    className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-sm text-nrlx-text focus:border-nrlx-accent/40 focus:outline-none"
+                  >
+                    {cuentasBancarias.map((cuenta) => (
+                      <option key={cuenta.id_cuenta} value={cuenta.id_cuenta}>
+                        {cuenta.banco} · {cuenta.numero_cuenta || cuenta.id_cuenta}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="bg-nrlx-card/50 border border-nrlx-border/50 rounded-lg p-3">
                   <p className="text-[10px] font-mono text-nrlx-warning">
                     Las solicitudes requieren aprobacion del administrador antes de procesarse.
@@ -127,55 +233,102 @@ export default function SolicitudesPage() {
 
                 <button
                   onClick={handleSubmit}
-                  disabled={!monto || submitting || status === 'loading'}
+                  disabled={!monto || submitting || status === 'loading' || !cuentaOrigen || !cuentaDestino}
                   className={`w-full py-3 rounded-lg text-sm font-medium transition-all ${
                     submitting
                       ? 'bg-nrlx-accent/20 text-nrlx-accent border border-nrlx-accent/30'
-                      : !monto
+                      : !monto || !cuentaOrigen || !cuentaDestino
                       ? 'bg-nrlx-card text-nrlx-muted border border-nrlx-border cursor-not-allowed'
                       : 'bg-nrlx-accent/10 text-nrlx-accent border border-nrlx-accent/30 hover:bg-nrlx-accent/20'
                   }`}
                 >
-                  {submitting ? 'Enviando...' : 'Enviar solicitud'}
+                  {submitting ? 'Enviando...' : 'Solicitar retiro'}
                 </button>
               </div>
             </div>
 
             <div className="bg-nrlx-surface border border-nrlx-border rounded-xl p-6">
-              <h2 className="text-xs font-mono text-nrlx-muted tracking-wider mb-6">
-                SOLICITUDES PENDIENTES
-              </h2>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <h2 className="text-xs font-mono text-nrlx-muted tracking-wider">
+                  HISTORIAL DE SOLICITUDES
+                </h2>
+                <button
+                  onClick={() => loadSolicitudes(tab)}
+                  className="w-8 h-8 rounded-lg border border-nrlx-border bg-nrlx-el text-nrlx-muted inline-flex items-center justify-center"
+                >
+                  <RefreshCw size={14} />
+                </button>
+              </div>
 
-              {loading || status === 'loading' ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+                {([
+                  ['pendientes', 'Pendientes'],
+                  ['completadas', 'Completadas'],
+                  ['rechazadas', 'Rechazadas'],
+                  ['todas', 'Todas'],
+                ] as Array<[Tab, string]>).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setTab(key)}
+                    className={`h-9 rounded-lg border text-xs ${
+                      tab === key
+                        ? 'border-nrlx-accent/40 bg-nrlx-accent/10 text-nrlx-accent'
+                        : 'border-nrlx-border bg-nrlx-el text-nrlx-muted'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {loading || loadingHistorial || status === 'loading' ? (
                 <div className="text-center py-12">
                   <p className="text-sm text-nrlx-muted">Cargando solicitudes...</p>
                 </div>
-              ) : solicitudesPendientes.length === 0 ? (
+              ) : solicitudes.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-sm text-nrlx-muted">Sin solicitudes pendientes</p>
+                  <svg
+                    width="74"
+                    height="74"
+                    viewBox="0 0 74 74"
+                    className="mx-auto mb-3 text-nrlx-muted"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect x="16" y="10" width="42" height="54" rx="8" stroke="currentColor" />
+                    <line x1="24" y1="24" x2="50" y2="24" stroke="currentColor" />
+                    <line x1="24" y1="33" x2="50" y2="33" stroke="currentColor" />
+                    <line x1="24" y1="42" x2="42" y2="42" stroke="currentColor" />
+                  </svg>
+                  <p className="text-sm text-nrlx-muted">No hay solicitudes en este filtro.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {solicitudesPendientes.map((sol) => (
+                  {solicitudes.map((sol) => (
                     <div
                       key={sol.id_solicitud}
                       className="bg-nrlx-card border border-nrlx-border/50 rounded-lg p-4"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <p className="text-[10px] font-mono text-nrlx-muted">
-                          {sol.id_solicitud}
-                        </p>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-nrlx-warning/10 text-nrlx-warning">
-                          {sol.estatus}
-                        </span>
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-2">
+                          <StatusIcon status={sol.estatus} />
+                          <p className="text-[10px] font-mono text-nrlx-muted">{sol.id_solicitud}</p>
+                        </div>
+                        <StatusBadge status={sol.estatus} />
                       </div>
-                      <p className="text-lg font-mono text-nrlx-text">
-                        {formatMoney(sol.monto, sol.moneda)}
-                      </p>
+                      <p className="text-2xl font-mono text-nrlx-text">{formatearMoneda(sol.monto, sol.moneda)}</p>
                       <p className="text-xs text-nrlx-muted mt-1">{sol.concepto || '—'}</p>
                       <p className="text-[10px] font-mono text-nrlx-muted mt-2">
-                        {new Date(sol.fecha_solicitud).toLocaleDateString('es-MX')}
+                        Solicitud: {new Date(sol.fecha_solicitud).toLocaleDateString('es-MX')}
                       </p>
+                      {sol.fecha_resolucion && (
+                        <p className="text-[10px] font-mono text-nrlx-muted mt-1">
+                          Resolución: {new Date(sol.fecha_resolucion).toLocaleDateString('es-MX')}
+                        </p>
+                      )}
+                      {sol.comentario_admin && (
+                        <p className="text-xs italic text-nrlx-muted mt-2">{sol.comentario_admin}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -186,4 +339,22 @@ export default function SolicitudesPage() {
       </main>
     </div>
   )
+}
+
+function StatusIcon({ status }: { status: string }) {
+  const normalized = status.toLowerCase()
+  if (normalized.includes('rech')) return <XCircle size={15} className="text-nrlx-danger" />
+  if (normalized.includes('ejec') || normalized.includes('complet')) return <CheckCircle2 size={15} className="text-nrlx-success" />
+  return <Clock3 size={15} className="text-nrlx-warning" />
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const normalized = status.toLowerCase()
+  const classes = normalized.includes('rech')
+    ? 'bg-nrlx-danger/10 text-nrlx-danger'
+    : normalized.includes('ejec') || normalized.includes('complet')
+    ? 'bg-nrlx-success/10 text-nrlx-success'
+    : 'bg-nrlx-warning/10 text-nrlx-warning'
+
+  return <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${classes}`}>{status}</span>
 }

@@ -33,6 +33,7 @@ export interface UsuarioSocio {
   entra_id_upn: string
   estatus: string
   fecha_conexion: string
+  created_at?: string
 }
 
 export interface CuentaBancaria {
@@ -43,6 +44,7 @@ export interface CuentaBancaria {
   moneda: string
   saldo_total: number
   saldo_disponible: number
+  saldo_retenido?: number
   tipo_cuenta: string
   icono_banco_url: string | null
 }
@@ -92,6 +94,65 @@ export interface SolicitudesResponse {
   total: number
 }
 
+export interface Beneficiario {
+  id_beneficiario: string
+  id_usuario: string
+  tipo: string
+  nombre: string
+  apellidos: string | null
+  email: string | null
+  pais: string
+  divisa: string
+  clabe: string | null
+  iban: string | null
+  swift: string | null
+  banco: string | null
+  numero_cuenta: string | null
+  estatus: string
+  created_at: string
+}
+
+export interface CuentaBancariaVinculada {
+  id_cuenta: string
+  banco: string
+  clabe?: string | null
+  numero_cuenta: string | null
+  swift_code: string | null
+  pais?: string | null
+  moneda: string
+  tipo_cuenta: string
+}
+
+export interface ProcesoRegulatorio {
+  id_proceso: string
+  tipo_proceso: string
+  estatus: string
+  fecha_inicio: string | null
+  fecha_actualizacion: string | null
+  [key: string]: any
+}
+
+export interface TransferRequestPayload {
+  flow: 'transfer'
+  tipo: 'transferencia_interna' | 'transferencia_externa' | 'retiro_banco'
+  nxg_destino?: string
+  id_cuenta_banco?: string
+  beneficiario_id?: string
+  moneda: string
+  monto: number
+  concepto?: string
+  referencia?: string
+  datos_extra?: Record<string, any>
+}
+
+export interface SolicitudRetiroPayload {
+  monto: number
+  concepto?: string
+  moneda?: string
+  nxg_origen?: string
+  id_cuenta_banco?: string
+}
+
 // API FUNCTIONS — Local routes
 export const api = {
   getMe: () =>
@@ -107,12 +168,22 @@ export const api = {
     )
   },
 
-  crearSolicitudRetiro: (arg1: string | number, arg2?: number | string, arg3?: string) => {
+  crearSolicitudRetiro: (
+    arg1: string | number | SolicitudRetiroPayload,
+    arg2?: number | string,
+    arg3?: string
+  ) => {
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      return apiFetch('/api/solicitud-retiro', {
+        method: 'POST',
+        body: JSON.stringify(arg1),
+      })
+    }
     const monto = typeof arg1 === 'number' ? arg1 : Number(arg2 ?? 0)
-    const concepto = typeof arg1 === 'number' ? arg2 as string | undefined : arg3
+    const concepto = typeof arg1 === 'number' ? (arg2 as string | undefined) : arg3
     return apiFetch('/api/solicitud-retiro', {
       method: 'POST',
-      body: JSON.stringify({ monto, concepto }),
+      body: JSON.stringify({ monto, concepto, moneda: 'MXN' }),
     })
   },
 
@@ -122,6 +193,36 @@ export const api = {
       `/api/solicitudes${estatus ? `?estatus=${estatus}` : ''}`
     )
   },
+
+  getBeneficiarios: (search?: string) =>
+    apiFetch<{ beneficiarios: Beneficiario[]; total: number }>(
+      `/api/beneficiarios${search ? `?q=${encodeURIComponent(search)}` : ''}`
+    ),
+
+  crearBeneficiario: (payload: Partial<Beneficiario>) =>
+    apiFetch<{ exito: boolean; beneficiario: Beneficiario }>('/api/beneficiarios', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  eliminarBeneficiario: (id_beneficiario: string) =>
+    apiFetch<{ exito: boolean; id_beneficiario: string }>(`/api/beneficiarios?id_beneficiario=${encodeURIComponent(id_beneficiario)}`, {
+      method: 'DELETE',
+    }),
+
+  getCuentasBancariasVinculadas: () =>
+    apiFetch<{ cuentas: CuentaBancariaVinculada[]; total: number }>('/api/cuentas-bancarias'),
+
+  crearTransferencia: (payload: TransferRequestPayload) =>
+    apiFetch('/api/solicitud-retiro', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getRegulatorios: (estatus?: string) =>
+    apiFetch<{ procesos: ProcesoRegulatorio[]; total: number }>(
+      `/api/regulatorios${estatus ? `?estatus=${encodeURIComponent(estatus)}` : ''}`
+    ),
 
   // Admin
   adminResumen: () =>

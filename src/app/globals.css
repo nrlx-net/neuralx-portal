@@ -1,17 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --nrlx-bg: #0a0a0a;
-  --nrlx-surface: #111111;
-  --nrlx-card: #1a1a1a;
-  --nrlx-border: #2a2a2a;
-  --nrlx-accent: #00d4aa;
-  --nrlx-text: #e5e5e5;
-  --nrlx-muted: #888888;
+  --nrlx-bg: #000000;
+  --nrlx-surface: #0a0a0a;
+  --nrlx-el: #141414;
+  --nrlx-el2: #1c1c1e;
+  --nrlx-border: rgba(255, 255, 255, 0.07);
+  --nrlx-accent: #0a84ff;
+  --nrlx-text: #ffffff;
+  --nrlx-muted: #8e8e93;
+  --nrlx-success: #30d158;
+  --nrlx-warning: #ff9f0a;
+  --nrlx-danger: #ff453a;
 }
 
 * {
@@ -23,24 +27,88 @@
 body {
   background: var(--nrlx-bg);
   color: var(--nrlx-text);
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: rgba(0, 212, 170, 0.3);
+  background: rgba(10, 132, 255, 0.3);
   color: #fff;
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--nrlx-bg);
+  background: #000;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--nrlx-border);
+  background: #222;
   border-radius: 3px;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseDot {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes liveDot {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 420ms ease-out both;
+}
+
+.animate-pulse-dot {
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+.animate-live-dot {
+  animation: liveDot 1.8s ease-in-out infinite;
+}
+
+.delay-1 {
+  animation-delay: 90ms;
+}
+
+.delay-2 {
+  animation-delay: 180ms;
+}
+
+.delay-3 {
+  animation-delay: 270ms;
+}
+
+.delay-4 {
+  animation-delay: 360ms;
 }
