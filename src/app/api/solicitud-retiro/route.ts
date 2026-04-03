@@ -145,7 +145,7 @@ export async function POST(request: Request) {
       .input('nxg_origen', nxgOrigen)
       .input('id_cuenta_banco', idCuentaBanco)
       .input('monto', monto)
-      .input('concepto', concepto || 'Retiro a cuenta bancaria')
+      .input('concepto', concepto || 'Transferencia externa a cuenta bancaria')
       .query('EXEC dbo.sp_solicitar_retiro_banco @id_usuario, @nxg_origen, @id_cuenta_banco, @monto, @concepto')
 
     const result = execResult.recordset?.[0] || {}

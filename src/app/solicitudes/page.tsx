@@ -95,7 +95,7 @@ export default function SolicitudesPage() {
       setSubmitting(true)
       setError(null)
       setFeedback(null)
-      await api.crearSolicitudRetiro({
+      await api.crearTransferenciaExterna({
         monto: montoNumber,
         concepto: concepto.trim() || undefined,
         moneda,
@@ -119,9 +119,9 @@ export default function SolicitudesPage() {
       <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
         <div className="p-6 lg:p-8 max-w-5xl">
           <div className="mb-8 pt-2 lg:pt-0">
-            <h1 className="text-2xl font-medium text-nrlx-text">Solicitudes</h1>
+            <h1 className="text-2xl font-medium text-nrlx-text">Transferencias externas</h1>
             <p className="text-xs text-nrlx-muted mt-1">
-              Retiros y transferencias sujetas a aprobación administrativa
+              Operaciones externas sujetas a aprobación administrativa
             </p>
           </div>
 
@@ -160,6 +160,7 @@ export default function SolicitudesPage() {
                     {cuentasInternas.map((cuenta) => (
                       <option key={cuenta.id_cuenta} value={cuenta.id_cuenta}>
                         {cuenta.id_cuenta} · {cuenta.moneda}
+                        {cuenta.titular ? ` · ${cuenta.titular}` : ''}
                       </option>
                     ))}
                   </select>
@@ -203,14 +204,14 @@ export default function SolicitudesPage() {
                     type="text"
                     value={concepto}
                     onChange={(e) => setConcepto(e.target.value)}
-                    placeholder="Descripcion del retiro"
+                    placeholder="Descripción de la transferencia externa"
                     className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-sm text-nrlx-text placeholder:text-nrlx-muted/40 focus:border-nrlx-accent/40 focus:outline-none transition-colors"
                   />
                 </div>
 
                 <div>
                   <label className="text-[10px] font-mono text-nrlx-muted tracking-wider block mb-1.5">
-                    CUENTA DESTINO BANCARIA
+                    CUENTA DESTINO EXTERNA
                   </label>
                   <select
                     value={cuentaDestino}
@@ -220,6 +221,7 @@ export default function SolicitudesPage() {
                     {cuentasBancarias.map((cuenta) => (
                       <option key={cuenta.id_cuenta} value={cuenta.id_cuenta}>
                         {cuenta.banco} · {cuenta.numero_cuenta || cuenta.id_cuenta}
+                        {cuenta.titular ? ` · ${cuenta.titular}` : ''}
                       </option>
                     ))}
                   </select>
@@ -227,7 +229,7 @@ export default function SolicitudesPage() {
 
                 <div className="bg-nrlx-card/50 border border-nrlx-border/50 rounded-lg p-3">
                   <p className="text-[10px] font-mono text-nrlx-warning">
-                    Las solicitudes requieren aprobacion del administrador antes de procesarse.
+                    Las transferencias externas requieren aprobación del administrador antes de procesarse.
                   </p>
                 </div>
 
@@ -242,7 +244,7 @@ export default function SolicitudesPage() {
                       : 'bg-nrlx-accent/10 text-nrlx-accent border border-nrlx-accent/30 hover:bg-nrlx-accent/20'
                   }`}
                 >
-                  {submitting ? 'Enviando...' : 'Solicitar retiro'}
+                  {submitting ? 'Enviando...' : 'Solicitar transferencia externa'}
                 </button>
               </div>
             </div>

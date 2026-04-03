@@ -340,7 +340,7 @@ export default function DashboardPage() {
             <h3 className="text-sm font-medium text-nrlx-text mb-3">Mas acciones</h3>
             <div className="space-y-2">
               <Link href="/solicitudes" onClick={() => setMoreSheetOpen(false)} className="block rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-sm text-nrlx-text">
-                Solicitud de retiro
+                Transferencia externa
               </Link>
               <Link href="/regulatorio" onClick={() => setMoreSheetOpen(false)} className="block rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-sm text-nrlx-text">
                 Procesos regulatorios

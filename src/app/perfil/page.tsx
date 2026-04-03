@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { signOut } from 'next-auth/react'
 import { api, ProcesoRegulatorio, UsuarioSocio } from '@/lib/api'
 import { Sidebar } from '../components/Sidebar'
+import { formatearMoneda } from '@/lib/balance'
 import {
   BadgeCheck,
   ChevronRight,
@@ -40,6 +41,7 @@ export default function PerfilPage() {
   const [error, setError] = useState<string | null>(null)
   const [user, setUser] = useState<UsuarioSocio | null>(null)
   const [procesos, setProcesos] = useState<ProcesoRegulatorio[]>([])
+  const [saldoConsolidado, setSaldoConsolidado] = useState(0)
 
   useEffect(() => {
     void load()
@@ -49,9 +51,14 @@ export default function PerfilPage() {
     try {
       setLoading(true)
       setError(null)
-      const [me, regs] = await Promise.all([api.getMe(), api.getRegulatorios('en_proceso')])
+      const [me, regs, cuentas] = await Promise.all([
+        api.getMe(),
+        api.getRegulatorios('en_proceso'),
+        api.getCuentas(),
+      ])
       setUser(me)
       setProcesos(regs.procesos || [])
+      setSaldoConsolidado(Number(cuentas.saldo_consolidado || 0))
     } catch (err: any) {
       setError(err.message || 'No se pudo cargar el perfil')
     } finally {
@@ -126,6 +133,11 @@ export default function PerfilPage() {
               <p className="text-xs text-nrlx-text">Procesos Regulatorios</p>
               <p className="text-[11px] text-nrlx-muted">{procesos.length} activos</p>
             </div>
+          </section>
+          <section className="rounded-xl border border-nrlx-border bg-nrlx-surface p-3">
+            <p className="text-xs text-nrlx-text">Saldo consolidado</p>
+            <p className="text-lg font-mono text-nrlx-accent mt-1">{formatearMoneda(saldoConsolidado, 'MXN')}</p>
+            <p className="text-[11px] text-nrlx-muted mt-1">Consolidado operativo del perfil autenticado</p>
           </section>
 
           <MenuGroup

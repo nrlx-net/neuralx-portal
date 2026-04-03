@@ -6,6 +6,11 @@ import type { ConnectionPool } from 'mssql'
 const ADMIN_UPNS = ['malvarez@neuralxglobal.net', 'neuralx@neuralxglobal.net']
 const ADMIN_SET = new Set(ADMIN_UPNS.map((x) => x.toLowerCase()))
 
+export function isAdminUpn(value: string | null | undefined) {
+  if (!value) return false
+  return ADMIN_SET.has(value.toLowerCase().trim())
+}
+
 export async function getAuthenticatedUpn(): Promise<string | null> {
   const session = await getServerSession(authOptions)
   if (!session?.user?.upn && !session?.user?.email) return null
@@ -23,7 +28,7 @@ export async function requireAuth() {
 export async function requireAdmin() {
   const { error, upn } = await requireAuth()
   if (error) return { error, upn: null }
-  if (!ADMIN_SET.has(upn!.toLowerCase())) {
+  if (!isAdminUpn(upn)) {
     return { error: NextResponse.json({ detail: 'Solo administradores' }, { status: 403 }), upn: null }
   }
   return { error: null, upn }

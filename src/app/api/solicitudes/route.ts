@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 
 export async function GET(request: Request) {
   const { error, upn } = await requireAuth()
@@ -16,16 +16,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
 
-    const userId = user.id_usuario
+    const admin = isAdminUpn(upn)
     let query = `
       SELECT id_solicitud, tipo, nxg_origen, nxg_destino, id_cuenta_banco, monto,
              moneda, concepto, estatus, comentario_admin, aprobado_por,
              fecha_solicitud, fecha_resolucion
       FROM solicitudes
-      WHERE id_usuario = @userId
+      WHERE 1=1
     `
 
-    const req = db.request().input('userId', userId)
+    const req = db.request()
+    if (!admin) {
+      query += ' AND id_usuario = @userId'
+      req.input('userId', user.id_usuario)
+    }
     if (estatus) {
       query += ' AND estatus = @estatus'
       req.input('estatus', estatus)

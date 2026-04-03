@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 
 export async function GET(request: Request) {
   const { error, upn } = await requireAuth()
@@ -15,11 +15,12 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
-    const userId = user.id_usuario
-
-    const cuentasResult = await db.request()
-      .input('userId', userId)
-      .query('SELECT nxg_id FROM cuentas_internas WHERE id_usuario = @userId')
+    const admin = isAdminUpn(upn)
+    const cuentasResult = admin
+      ? await db.request().query('SELECT nxg_id FROM cuentas_internas')
+      : await db.request()
+          .input('userId', user.id_usuario)
+          .query('SELECT nxg_id FROM cuentas_internas WHERE id_usuario = @userId')
 
     if (cuentasResult.recordset.length === 0) {
       return NextResponse.json({ transacciones: [], total: 0 })

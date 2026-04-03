@@ -47,6 +47,7 @@ export interface CuentaBancaria {
   saldo_retenido?: number
   tipo_cuenta: string
   icono_banco_url: string | null
+  titular?: string | null
 }
 
 export interface CuentasResponse {
@@ -114,6 +115,8 @@ export interface Beneficiario {
 
 export interface CuentaBancariaVinculada {
   id_cuenta: string
+  id_usuario?: string
+  titular?: string | null
   banco: string
   clabe?: string | null
   numero_cuenta: string | null
@@ -186,6 +189,12 @@ export const api = {
       body: JSON.stringify({ monto, concepto, moneda: 'MXN' }),
     })
   },
+
+  crearTransferenciaExterna: (payload: SolicitudRetiroPayload) =>
+    apiFetch('/api/solicitud-retiro', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
   getSolicitudes: (arg1?: string, arg2?: string) => {
     const estatus = arg2 ?? arg1
