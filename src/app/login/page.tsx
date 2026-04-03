@@ -100,7 +100,7 @@ export default function LoginPage() {
             <p className="text-[11px] text-nrlx-text leading-4">
               +52 312 1032746
               <br />
-              neuralx@neuralxglobal.net
+              <span className="break-all">neuralx@neuralxglobal.net</span>
             </p>
           </div>
         </div>

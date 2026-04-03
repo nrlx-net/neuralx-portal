@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
 
 export async function GET() {
   const { error, upn } = await requireAuth()
@@ -8,16 +8,12 @@ export async function GET() {
 
   try {
     const db = await getDb()
-    const userResult = await db
-      .request()
-      .input('upn', upn)
-      .query('SELECT id_usuario FROM usuarios_socios WHERE entra_id_upn = @upn')
-
-    if (userResult.recordset.length === 0) {
+    const user = await getUserByUpnOrEmail(db, upn!)
+    if (!user) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
 
-    const userId = userResult.recordset[0].id_usuario
+    const userId = user.id_usuario
     const result = await db
       .request()
       .input('userId', userId)

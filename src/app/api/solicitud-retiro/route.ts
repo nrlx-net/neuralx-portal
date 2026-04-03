@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
 
 export async function POST(request: Request) {
   const { error, upn } = await requireAuth()
@@ -27,16 +27,10 @@ export async function POST(request: Request) {
     }
 
     const db = await getDb()
-
-    const userResult = await db.request()
-      .input('upn', upn)
-      .query('SELECT id_usuario, nombre_completo FROM usuarios_socios WHERE entra_id_upn = @upn')
-
-    if (userResult.recordset.length === 0) {
+    const user = await getUserByUpnOrEmail(db, upn!)
+    if (!user) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
-
-    const user = userResult.recordset[0]
 
     const nxgReq = db.request().input('userId', user.id_usuario)
     let nxgQuery = 'SELECT TOP 1 nxg_id FROM cuentas_internas WHERE id_usuario = @userId'

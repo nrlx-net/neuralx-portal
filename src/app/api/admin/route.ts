@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { requireAdmin } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, requireAdmin } from '@/lib/auth-helpers'
 
 export async function GET(request: Request) {
   const { error } = await requireAdmin()
@@ -73,15 +73,12 @@ export async function POST(request: Request) {
     }
 
     const db = await getDb()
-    const adminResult = await db.request()
-      .input('upn', upn)
-      .query('SELECT id_usuario FROM usuarios_socios WHERE entra_id_upn = @upn')
-
-    if (adminResult.recordset.length === 0) {
+    const admin = await getUserByUpnOrEmail(db, upn!)
+    if (!admin) {
       return NextResponse.json({ detail: 'Admin no encontrado en usuarios_socios' }, { status: 404 })
     }
 
-    const idAdmin = adminResult.recordset[0].id_usuario
+    const idAdmin = admin.id_usuario
 
     if (action === 'aprobar') {
       const execResult = await db.request()

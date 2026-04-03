@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
 
 function isMexicoCountry(value?: string) {
   const normalized = (value || '').trim().toLowerCase()
@@ -16,16 +16,12 @@ export async function GET(request: Request) {
 
   try {
     const db = await getDb()
-    const userResult = await db
-      .request()
-      .input('upn', upn)
-      .query('SELECT id_usuario FROM usuarios_socios WHERE entra_id_upn = @upn')
-
-    if (userResult.recordset.length === 0) {
+    const user = await getUserByUpnOrEmail(db, upn!)
+    if (!user) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
 
-    const userId = userResult.recordset[0].id_usuario
+    const userId = user.id_usuario
     const req = db.request().input('userId', userId)
     let query = `
       SELECT id_beneficiario, id_usuario, tipo, nombre, apellidos, email, pais, divisa,
@@ -88,16 +84,12 @@ export async function POST(request: Request) {
     }
 
     const db = await getDb()
-    const userResult = await db
-      .request()
-      .input('upn', upn)
-      .query('SELECT id_usuario FROM usuarios_socios WHERE entra_id_upn = @upn')
-
-    if (userResult.recordset.length === 0) {
+    const user = await getUserByUpnOrEmail(db, upn!)
+    if (!user) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
 
-    const userId = userResult.recordset[0].id_usuario
+    const userId = user.id_usuario
     const now = new Date()
     const idBeneficiario = `BEN-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}-${Math.floor(Math.random() * 900 + 100)}`
 
@@ -157,15 +149,11 @@ export async function DELETE(request: Request) {
     }
 
     const db = await getDb()
-    const userResult = await db
-      .request()
-      .input('upn', upn)
-      .query('SELECT id_usuario FROM usuarios_socios WHERE entra_id_upn = @upn')
-
-    if (userResult.recordset.length === 0) {
+    const user = await getUserByUpnOrEmail(db, upn!)
+    if (!user) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
-    const userId = userResult.recordset[0].id_usuario
+    const userId = user.id_usuario
 
     await db
       .request()
