@@ -4,10 +4,25 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar } from '../components/Sidebar'
 import { api, CuentaBancaria, CuentaBancariaVinculada, Solicitud } from '@/lib/api'
-import { ArrowRightLeft, CheckCircle2, Clock3, RefreshCw, Search, XCircle } from 'lucide-react'
+import { ArrowRightLeft, Building2, CheckCircle2, Clock3, RefreshCw, Search, XCircle } from 'lucide-react'
 import { formatearMoneda } from '@/lib/balance'
 
 type Tab = 'pendientes' | 'completadas' | 'rechazadas' | 'todas'
+
+const BANK_ICON_FALLBACKS: Record<string, string> = {
+  bbva: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/BBVA-icon.jpeg',
+  banamex: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Banamex-icon.jpeg',
+  banregio: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Banregio-icon.png',
+}
+
+function getBankIconUrl(cuenta: CuentaBancariaVinculada) {
+  if (cuenta.icono_banco_url) return cuenta.icono_banco_url
+  const bank = (cuenta.banco || '').toLowerCase()
+  if (bank.includes('bbva')) return BANK_ICON_FALLBACKS.bbva
+  if (bank.includes('banamex') || bank.includes('citibanamex')) return BANK_ICON_FALLBACKS.banamex
+  if (bank.includes('banregio')) return BANK_ICON_FALLBACKS.banregio
+  return null
+}
 
 export default function SolicitudesPage() {
   const { status } = useSession()
@@ -100,6 +115,7 @@ export default function SolicitudesPage() {
     const bag = `${cuenta.banco} ${cuenta.numero_cuenta || ''} ${cuenta.titular || ''} ${cuenta.id_cuenta}`.toLowerCase()
     return bag.includes(q)
   })
+  const cuentaDestinoSeleccionada = cuentasBancarias.find((c) => c.id_cuenta === cuentaDestino)
 
   async function handleSubmit() {
     const montoNumber = Number(monto)
@@ -283,18 +299,51 @@ export default function SolicitudesPage() {
                       className="bg-transparent w-full text-xs text-nrlx-text placeholder:text-nrlx-muted focus:outline-none"
                     />
                   </div>
-                  <select
-                    value={cuentaDestino}
-                    onChange={(e) => setCuentaDestino(e.target.value)}
-                    className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-sm text-nrlx-text focus:border-nrlx-accent/40 focus:outline-none"
-                  >
-                    {cuentasDestinoFiltradas.map((cuenta) => (
-                      <option key={cuenta.id_cuenta} value={cuenta.id_cuenta}>
-                        {cuenta.titular ? `${cuenta.titular} · ` : ''}
-                        {cuenta.banco} · {cuenta.numero_cuenta || cuenta.id_cuenta}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
+                    {cuentasDestinoFiltradas.map((cuenta) => {
+                      const selected = cuenta.id_cuenta === cuentaDestino
+                      const iconUrl = getBankIconUrl(cuenta)
+                      return (
+                        <button
+                          key={cuenta.id_cuenta}
+                          type="button"
+                          onClick={() => setCuentaDestino(cuenta.id_cuenta)}
+                          className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+                            selected
+                              ? 'border-nrlx-accent/40 bg-nrlx-accent/10'
+                              : 'border-nrlx-border bg-nrlx-card hover:border-nrlx-accent/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {iconUrl ? (
+                              <img
+                                src={iconUrl}
+                                alt={cuenta.banco}
+                                className="w-8 h-8 rounded-full object-cover border border-nrlx-border"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full border border-nrlx-border bg-nrlx-el flex items-center justify-center">
+                                <Building2 size={13} className="text-nrlx-muted" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs text-nrlx-text truncate">
+                                {cuenta.titular || 'Titular no especificado'}
+                              </p>
+                              <p className="text-[11px] text-nrlx-muted truncate">
+                                {cuenta.banco} · {cuenta.numero_cuenta || cuenta.id_cuenta}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {cuentaDestinoSeleccionada && (
+                    <p className="text-[11px] text-nrlx-accent mt-2">
+                      Seleccionada: {cuentaDestinoSeleccionada.banco} · {cuentaDestinoSeleccionada.numero_cuenta || cuentaDestinoSeleccionada.id_cuenta}
+                    </p>
+                  )}
                   {cuentasDestinoFiltradas.length === 0 && (
                     <p className="text-[11px] text-nrlx-muted mt-2">
                       No hay coincidencias para tu búsqueda.

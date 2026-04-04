@@ -118,6 +118,7 @@ export interface CuentaBancariaVinculada {
   id_usuario?: string
   titular?: string | null
   banco: string
+  icono_banco_url?: string | null
   clabe?: string | null
   numero_cuenta: string | null
   swift_code: string | null

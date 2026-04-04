@@ -38,12 +38,27 @@ interface TransferFlowProps {
   onClose: () => void
 }
 
+const BANK_ICON_FALLBACKS: Record<string, string> = {
+  bbva: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/BBVA-icon.jpeg',
+  banamex: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Banamex-icon.jpeg',
+  banregio: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Banregio-icon.png',
+}
+
 function formatMoney(amount: number, currency: string = 'MXN') {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
   }).format(amount)
+}
+
+function getBankIconUrl(cuenta: CuentaBancariaVinculada) {
+  if (cuenta.icono_banco_url) return cuenta.icono_banco_url
+  const bank = (cuenta.banco || '').toLowerCase()
+  if (bank.includes('bbva')) return BANK_ICON_FALLBACKS.bbva
+  if (bank.includes('banamex') || bank.includes('citibanamex')) return BANK_ICON_FALLBACKS.banamex
+  if (bank.includes('banregio')) return BANK_ICON_FALLBACKS.banregio
+  return null
 }
 
 export function TransferFlow({ open, onClose }: TransferFlowProps) {
@@ -252,11 +267,26 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
                       }
                       className="w-full rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-left hover:border-nrlx-accent/40 transition-colors"
                     >
-                      <p className="text-sm text-nrlx-text">{c.banco}</p>
-                      <p className="text-[11px] text-nrlx-muted">
-                        {c.numero_cuenta || c.id_cuenta}
-                        {c.titular ? ` · ${c.titular}` : ''}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        {getBankIconUrl(c) ? (
+                          <img
+                            src={getBankIconUrl(c)!}
+                            alt={c.banco}
+                            className="w-8 h-8 rounded-full object-cover border border-nrlx-border"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full border border-nrlx-border bg-nrlx-el2 flex items-center justify-center">
+                            <Building2 size={13} className="text-nrlx-muted" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm text-nrlx-text">{c.banco}</p>
+                          <p className="text-[11px] text-nrlx-muted">
+                            {c.numero_cuenta || c.id_cuenta}
+                            {c.titular ? ` · ${c.titular}` : ''}
+                          </p>
+                        </div>
+                      </div>
                     </button>
                   ))}
                 </div>
