@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { api, CuentaBancaria, CuentaBancariaVinculada } from '@/lib/api'
-import { Building2, Copy, Eye, EyeOff, Plus } from 'lucide-react'
+import { Building2, Copy, Plus } from 'lucide-react'
 import { DrawerBase } from './DrawerBase'
 import { AddAccountDrawer } from './AddAccountDrawer'
 import { formatearMoneda } from '@/lib/balance'
@@ -17,7 +17,6 @@ export function BankDataSheet({ open, onClose }: BankDataSheetProps) {
   const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancariaVinculada[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hideBalance, setHideBalance] = useState(true)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
 
@@ -64,16 +63,6 @@ export function BankDataSheet({ open, onClose }: BankDataSheetProps) {
           Comparte estos datos para recibir transferencias
         </p>
 
-        <div className="flex items-center justify-end mb-3">
-          <button
-            onClick={() => setHideBalance((v) => !v)}
-            className="h-8 px-3 rounded-lg border border-nrlx-border bg-nrlx-el text-xs text-nrlx-muted inline-flex items-center gap-1"
-          >
-            {hideBalance ? <Eye size={13} /> : <EyeOff size={13} />}
-            {hideBalance ? 'Mostrar saldos' : 'Ocultar saldos'}
-          </button>
-        </div>
-
         {loading ? (
           <div className="space-y-2">
             <div className="h-20 rounded-xl bg-nrlx-el animate-pulse" />
@@ -114,7 +103,7 @@ export function BankDataSheet({ open, onClose }: BankDataSheetProps) {
                     </button>
                   </div>
                   <p className="text-xs text-nrlx-muted mt-2">Saldo disponible</p>
-                  <p className={`text-lg font-mono text-nrlx-text ${hideBalance ? 'blur-sm select-none' : ''}`}>
+                  <p className="text-lg font-mono text-nrlx-text">
                     {formatearMoneda(cuenta.saldo_disponible, cuenta.moneda)}
                   </p>
                 </div>

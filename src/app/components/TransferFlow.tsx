@@ -109,6 +109,15 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
     })
   }, [beneficiarios, query])
 
+  const cuentasBancariasValidas = useMemo(() => {
+    return cuentasBancarias
+      .filter((c) => {
+        const raw = (c.numero_cuenta || '').trim()
+        return Boolean(raw) && /[1-9A-Za-z]/.test(raw)
+      })
+      .sort((a, b) => `${a.titular || ''}${a.banco}`.localeCompare(`${b.titular || ''}${b.banco}`, 'es'))
+  }, [cuentasBancarias])
+
   function selectTarget(target: SelectedTarget) {
     setSelected(target)
     setStep(2)
@@ -130,7 +139,7 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
           selected.method === 'interna'
             ? 'transferencia_interna'
             : selected.method === 'banco'
-            ? 'retiro_banco'
+            ? 'transferencia_externa'
             : 'transferencia_externa',
         nxg_destino: selected.nxgDestino,
         id_cuenta_banco: selected.idCuentaBanco,
@@ -228,7 +237,7 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
 
                 <p className="text-[11px] font-mono text-nrlx-muted mb-2">Cuentas bancarias vinculadas</p>
                 <div className="space-y-2">
-                  {cuentasBancarias.map((c) => (
+                  {cuentasBancariasValidas.map((c) => (
                     <button
                       key={c.id_cuenta}
                       onClick={() =>
@@ -236,15 +245,18 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
                           kind: 'cuenta',
                           method: 'banco',
                           id: c.id_cuenta,
-                          title: c.banco || 'Cuenta bancaria',
-                          subtitle: c.numero_cuenta || c.id_cuenta,
+                          title: c.titular ? `${c.titular}` : c.banco || 'Cuenta bancaria',
+                          subtitle: `${c.banco} · ${c.numero_cuenta || c.id_cuenta}`,
                           idCuentaBanco: c.id_cuenta,
                         })
                       }
                       className="w-full rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-left hover:border-nrlx-accent/40 transition-colors"
                     >
                       <p className="text-sm text-nrlx-text">{c.banco}</p>
-                      <p className="text-[11px] text-nrlx-muted">{c.numero_cuenta || c.id_cuenta}</p>
+                      <p className="text-[11px] text-nrlx-muted">
+                        {c.numero_cuenta || c.id_cuenta}
+                        {c.titular ? ` · ${c.titular}` : ''}
+                      </p>
                     </button>
                   ))}
                 </div>

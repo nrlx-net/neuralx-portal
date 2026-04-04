@@ -14,8 +14,6 @@ import {
   ArrowUpRight,
   Building2,
   CreditCard,
-  Eye,
-  EyeOff,
   MoreHorizontal,
   Plus,
   Search,
@@ -32,8 +30,7 @@ export default function DashboardPage() {
   const [saldoTotal, setSaldoTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hideBalance, setHideBalance] = useState(true)
-  const [showSaldos, setShowSaldos] = useState(true)
+  const [showSaldos] = useState(true)
   const [activeSlide, setActiveSlide] = useState(0)
   const [depositDrawerOpen, setDepositDrawerOpen] = useState(false)
   const [transferDrawerOpen, setTransferDrawerOpen] = useState(false)
@@ -164,26 +161,13 @@ export default function DashboardPage() {
       <section className="bg-nrlx-surface border border-nrlx-border rounded-2xl p-5 mb-5">
         <p className="text-[11px] font-mono text-nrlx-muted mb-2">Personal · Todas las divisas</p>
         <div className="flex items-center gap-3 mb-3">
-          <p
-            className={`text-4xl font-light font-mono text-nrlx-text transition-all ${
-              hideBalance ? 'blur-sm select-none' : ''
-            }`}
-          >
+          <p className="text-4xl font-light font-mono text-nrlx-text transition-all">
             {formatearMoneda(saldoTotal)}
           </p>
-          <button
-            onClick={() => setHideBalance((v) => !v)}
-            className="w-9 h-9 rounded-full border border-nrlx-border bg-nrlx-el flex items-center justify-center text-nrlx-muted hover:text-nrlx-text transition-colors"
-          >
-            {hideBalance ? <Eye size={15} /> : <EyeOff size={15} />}
-          </button>
         </div>
-        <button
-          onClick={() => setShowSaldos((v) => !v)}
-          className="px-3 h-8 rounded-full border border-nrlx-border bg-nrlx-el text-[11px] font-medium text-nrlx-text mb-4"
-        >
+        <p className="px-3 h-8 rounded-full border border-nrlx-border bg-nrlx-el text-[11px] font-medium text-nrlx-text mb-4 inline-flex items-center">
           Saldos
-        </button>
+        </p>
 
         {showSaldos && (
           <>

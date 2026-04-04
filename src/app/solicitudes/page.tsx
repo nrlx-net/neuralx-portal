@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar } from '../components/Sidebar'
 import { api, CuentaBancaria, CuentaBancariaVinculada, Solicitud } from '@/lib/api'
-import { CheckCircle2, Clock3, RefreshCw, XCircle } from 'lucide-react'
+import { ArrowRightLeft, CheckCircle2, Clock3, RefreshCw, Search, XCircle } from 'lucide-react'
 import { formatearMoneda } from '@/lib/balance'
 
 type Tab = 'pendientes' | 'completadas' | 'rechazadas' | 'todas'
@@ -22,9 +22,11 @@ export default function SolicitudesPage() {
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadingHistorial, setLoadingHistorial] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
+  const [searchDestino, setSearchDestino] = useState('')
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -83,6 +85,22 @@ export default function SolicitudesPage() {
     }
   }
 
+  async function refreshAll() {
+    try {
+      setRefreshing(true)
+      await loadInitialData()
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const cuentasDestinoFiltradas = cuentasBancarias.filter((cuenta) => {
+    const q = searchDestino.trim().toLowerCase()
+    if (!q) return true
+    const bag = `${cuenta.banco} ${cuenta.numero_cuenta || ''} ${cuenta.titular || ''} ${cuenta.id_cuenta}`.toLowerCase()
+    return bag.includes(q)
+  })
+
   async function handleSubmit() {
     const montoNumber = Number(monto)
     if (!montoNumber || montoNumber <= 0) return
@@ -119,10 +137,21 @@ export default function SolicitudesPage() {
       <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
         <div className="p-6 lg:p-8 max-w-5xl">
           <div className="mb-8 pt-2 lg:pt-0">
-            <h1 className="text-2xl font-medium text-nrlx-text">Transferencias externas</h1>
-            <p className="text-xs text-nrlx-muted mt-1">
-              Operaciones externas sujetas a aprobación administrativa
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-medium text-nrlx-text">Transferencias externas</h1>
+                <p className="text-xs text-nrlx-muted mt-1">
+                  Operaciones externas sujetas a aprobación administrativa
+                </p>
+              </div>
+              <button
+                onClick={refreshAll}
+                className="h-9 px-3 rounded-lg border border-nrlx-border bg-nrlx-el text-xs text-nrlx-muted inline-flex items-center gap-2"
+              >
+                <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+                Actualizar
+              </button>
+            </div>
           </div>
 
           {feedback && (
@@ -137,7 +166,39 @@ export default function SolicitudesPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
+            <aside className="bg-nrlx-surface border border-nrlx-border rounded-xl p-4 h-fit">
+              <h2 className="text-xs font-mono text-nrlx-muted tracking-wider mb-3">
+                CENTRO DE TRANSFERENCIAS
+              </h2>
+              <div className="space-y-2 mb-4">
+                <button
+                  onClick={() => setTab('pendientes')}
+                  className="w-full rounded-lg border border-nrlx-border bg-nrlx-el px-3 py-2 text-left text-xs text-nrlx-text"
+                >
+                  Ver pendientes
+                </button>
+                <button
+                  onClick={() => setTab('todas')}
+                  className="w-full rounded-lg border border-nrlx-border bg-nrlx-el px-3 py-2 text-left text-xs text-nrlx-text"
+                >
+                  Ver historial completo
+                </button>
+                <button
+                  onClick={() => setSearchDestino('')}
+                  className="w-full rounded-lg border border-nrlx-border bg-nrlx-el px-3 py-2 text-left text-xs text-nrlx-text inline-flex items-center gap-2"
+                >
+                  <ArrowRightLeft size={12} />
+                  Limpiar selección de destino
+                </button>
+              </div>
+              <div className="rounded-lg border border-nrlx-warning/30 bg-nrlx-warning/10 p-3">
+                <p className="text-[11px] text-nrlx-warning">
+                  Selecciona cuentas validadas para evitar rechazos por datos incompletos.
+                </p>
+              </div>
+            </aside>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="bg-nrlx-surface border border-nrlx-border rounded-xl p-6">
               <h2 className="text-xs font-mono text-nrlx-muted tracking-wider mb-4">
                 NUEVA SOLICITUD
@@ -213,18 +274,32 @@ export default function SolicitudesPage() {
                   <label className="text-[10px] font-mono text-nrlx-muted tracking-wider block mb-1.5">
                     CUENTA DESTINO EXTERNA
                   </label>
+                  <div className="mb-2 h-9 rounded-lg border border-nrlx-border bg-nrlx-card px-3 flex items-center gap-2">
+                    <Search size={13} className="text-nrlx-muted" />
+                    <input
+                      value={searchDestino}
+                      onChange={(e) => setSearchDestino(e.target.value)}
+                      placeholder="Buscar por titular, banco o cuenta"
+                      className="bg-transparent w-full text-xs text-nrlx-text placeholder:text-nrlx-muted focus:outline-none"
+                    />
+                  </div>
                   <select
                     value={cuentaDestino}
                     onChange={(e) => setCuentaDestino(e.target.value)}
                     className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-sm text-nrlx-text focus:border-nrlx-accent/40 focus:outline-none"
                   >
-                    {cuentasBancarias.map((cuenta) => (
+                    {cuentasDestinoFiltradas.map((cuenta) => (
                       <option key={cuenta.id_cuenta} value={cuenta.id_cuenta}>
+                        {cuenta.titular ? `${cuenta.titular} · ` : ''}
                         {cuenta.banco} · {cuenta.numero_cuenta || cuenta.id_cuenta}
-                        {cuenta.titular ? ` · ${cuenta.titular}` : ''}
                       </option>
                     ))}
                   </select>
+                  {cuentasDestinoFiltradas.length === 0 && (
+                    <p className="text-[11px] text-nrlx-muted mt-2">
+                      No hay coincidencias para tu búsqueda.
+                    </p>
+                  )}
                 </div>
 
                 <div className="bg-nrlx-card/50 border border-nrlx-border/50 rounded-lg p-3">
@@ -335,6 +410,7 @@ export default function SolicitudesPage() {
                   ))}
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>

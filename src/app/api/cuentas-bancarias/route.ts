@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 
-export async function GET() {
+export async function GET(request: Request) {
   const { error, upn } = await requireAuth()
   if (error) return error
 
   try {
+    const { searchParams } = new URL(request.url)
+    const includeInvalid = searchParams.get('include_invalid') === '1'
     const db = await getDb()
     const user = await getUserByUpnOrEmail(db, upn!)
     if (!user) {
@@ -14,6 +16,13 @@ export async function GET() {
     }
 
     const admin = isAdminUpn(upn)
+    const validityFilter = includeInvalid
+      ? ''
+      : `
+            AND cb.numero_cuenta IS NOT NULL
+            AND LTRIM(RTRIM(cb.numero_cuenta)) <> ''
+            AND LTRIM(RTRIM(cb.numero_cuenta)) LIKE '%[1-9]%'
+          `
     const result = admin
       ? await db
           .request()
@@ -31,6 +40,8 @@ export async function GET() {
               cb.tipo_cuenta
             FROM cuentas_bancarias cb
             LEFT JOIN usuarios_socios us ON us.id_usuario = cb.id_usuario
+            WHERE 1=1
+            ${validityFilter}
             ORDER BY cb.id_cuenta
           `)
       : await db
@@ -51,10 +62,15 @@ export async function GET() {
             FROM cuentas_bancarias cb
             LEFT JOIN usuarios_socios us ON us.id_usuario = cb.id_usuario
             WHERE cb.id_usuario = @userId
+            ${validityFilter}
             ORDER BY cb.id_cuenta
           `)
 
-    return NextResponse.json({ cuentas: result.recordset, total: result.recordset.length })
+    return NextResponse.json({
+      cuentas: result.recordset,
+      total: result.recordset.length,
+      filtered_invalid: !includeInvalid,
+    })
   } catch (err: any) {
     console.error('Error /api/cuentas-bancarias:', err)
     return NextResponse.json({ detail: err.message }, { status: 500 })

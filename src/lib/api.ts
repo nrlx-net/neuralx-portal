@@ -219,8 +219,10 @@ export const api = {
       method: 'DELETE',
     }),
 
-  getCuentasBancariasVinculadas: () =>
-    apiFetch<{ cuentas: CuentaBancariaVinculada[]; total: number }>('/api/cuentas-bancarias'),
+  getCuentasBancariasVinculadas: (includeInvalid = false) =>
+    apiFetch<{ cuentas: CuentaBancariaVinculada[]; total: number; filtered_invalid?: boolean }>(
+      `/api/cuentas-bancarias${includeInvalid ? '?include_invalid=1' : ''}`
+    ),
 
   crearTransferencia: (payload: TransferRequestPayload) =>
     apiFetch('/api/solicitud-retiro', {
