@@ -136,6 +136,44 @@ export interface ProcesoRegulatorio {
   [key: string]: any
 }
 
+export interface EngineTxPayload {
+  origin_ledger_account: string
+  destination_ledger_account?: string | null
+  amount_original: number
+  currency_original: string
+  transaction_timestamp?: string | null
+  reference?: string | null
+  fee_bps?: number
+  tax_bps?: number
+  spread_bps?: number
+  trade_date?: string | null
+  settlement_date?: string | null
+  original_tx_id?: string | null
+}
+
+export interface EngineTxResult {
+  tx_id: string
+  status: 'SETTLED' | 'FAILED' | 'PENDING_FX' | 'REJECTED'
+  timestamp: string
+  amount_original: { value: number; currency: string }
+  amount_base: { value: number; currency: string }
+  fx_rate_applied: number
+  fx_rate_source: string | null
+  fx_rate_timestamp: string | null
+  charges: {
+    commission: { value: number; currency: string }
+    tax: { value: number; currency: string }
+    spread: { value: number; currency: string }
+  }
+  total_debit: { value: number; currency: string }
+  balances_after: {
+    origin: { ledger_balance: number; available_balance: number }
+    destination: { ledger_balance: number; available_balance: number }
+  }
+  ledger_entries: Array<{ type: 'DEBIT' | 'CREDIT'; account: string; amount: number }>
+  error: null | { code: string; step: number | null; detail: string | null }
+}
+
 export interface TransferRequestPayload {
   flow: 'transfer'
   tipo: 'transferencia_interna' | 'transferencia_externa' | 'retiro_banco'
@@ -229,6 +267,18 @@ export const api = {
     apiFetch('/api/solicitud-retiro', {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+
+  txProcess: (payload: EngineTxPayload) =>
+    apiFetch<EngineTxResult>('/api/tx/process', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  txReverse: (original_tx_id: string, reference?: string) =>
+    apiFetch<EngineTxResult>('/api/tx/reverse', {
+      method: 'POST',
+      body: JSON.stringify({ original_tx_id, reference }),
     }),
 
   getRegulatorios: (estatus?: string) =>
