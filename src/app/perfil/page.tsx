@@ -75,7 +75,7 @@ export default function PerfilPage() {
     return (
       <div className="min-h-screen bg-nrlx-bg">
         <Sidebar />
-        <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
+        <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 pb-20 lg:pb-0">
           <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-4 animate-fade-up">
             <div className="h-44 rounded-2xl bg-nrlx-el border border-nrlx-border animate-pulse" />
             <div className="h-28 rounded-2xl bg-nrlx-el border border-nrlx-border animate-pulse" />
@@ -89,7 +89,7 @@ export default function PerfilPage() {
     return (
       <div className="min-h-screen bg-nrlx-bg">
         <Sidebar />
-        <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
+        <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 pb-20 lg:pb-0">
           <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
             <div className="rounded-2xl border border-nrlx-danger/30 bg-nrlx-danger/10 p-4">
               <p className="text-sm text-nrlx-danger mb-2">{error}</p>
@@ -106,7 +106,7 @@ export default function PerfilPage() {
   return (
     <div className="min-h-screen bg-nrlx-bg">
       <Sidebar />
-      <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
+      <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 pb-20 lg:pb-0">
         <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto animate-fade-up space-y-4">
           <section className="rounded-2xl border border-nrlx-border bg-nrlx-surface p-5 text-center">
             <div className="w-20 h-20 mx-auto rounded-full bg-nrlx-accent/20 border border-nrlx-accent/30 flex items-center justify-center text-xl font-mono text-nrlx-text">

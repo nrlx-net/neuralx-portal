@@ -45,30 +45,20 @@ export function calcularBalanceConsolidado(cuentas: CuentaInterna[]) {
 }
 
 export function formatearMontoCorto(monto: number) {
-  const abs = Math.abs(monto)
-  if (abs >= 1_000_000_000) return `$${(monto / 1_000_000_000).toFixed(2)}B`
-  if (abs >= 1_000_000) return `$${(monto / 1_000_000).toFixed(2)}M`
-  if (abs >= 1_000) return `$${(monto / 1_000).toFixed(2)}K`
-  return `$${Math.round(monto)}`
+  return new Intl.NumberFormat('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(monto)
 }
 
 export function formatearMoneda(monto: number, moneda: string = 'MXN', locale: string = 'es-MX') {
-  const abs = Math.abs(monto)
   const currency = moneda.toUpperCase()
-
-  if (abs >= 1_000_000_000) {
-    const value = (monto / 1_000_000_000).toFixed(2)
-    return `${currency === 'MXN' ? '$' : `${currency} `}${value}B`
-  }
-  if (abs >= 1_000_000) {
-    const value = (monto / 1_000_000).toFixed(2)
-    return `${currency === 'MXN' ? '$' : `${currency} `}${value}M`
-  }
 
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(monto)
 }
 

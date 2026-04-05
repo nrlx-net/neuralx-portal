@@ -1,10 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowLeftRight, FileText, Gavel, Home, Landmark, ShieldCheck, User } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  FileText,
+  Gavel,
+  Home,
+  Landmark,
+  Menu,
+  ShieldCheck,
+  User,
+  X,
+} from 'lucide-react'
 import { TransferFlow } from './TransferFlow'
 
 const navItems = [
@@ -19,14 +29,20 @@ const navItems = [
 
 export function Sidebar() {
   const [transferDrawerOpen, setTransferDrawerOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { data: session } = useSession()
   const pathname = usePathname()
-  const initials = (session?.user?.name || 'NN')
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() || '')
-    .join('')
+
+  const initials = useMemo(
+    () =>
+      (session?.user?.name || 'NN')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() || '')
+        .join(''),
+    [session?.user?.name]
+  )
 
   return (
     <>
@@ -86,11 +102,28 @@ export function Sidebar() {
               onClick={() => signOut({ callbackUrl: '/login' })}
               className="mt-3 w-full text-xs text-nrlx-muted hover:text-nrlx-danger py-1.5 rounded-lg border border-nrlx-border hover:border-nrlx-danger/40 transition-colors"
             >
-              Cerrar sesion
+              Cerrar sesión
             </button>
           </div>
         </div>
       </aside>
+
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 border-b border-nrlx-border bg-nrlx-surface/95 backdrop-blur-md px-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <img
+            src="https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Logos_neuralx_cloudfire/icono_neuralx_defense_blanco.png"
+            alt="NeuralX"
+            className="h-6 w-auto object-contain"
+          />
+          <p className="text-[10px] font-mono text-nrlx-muted tracking-[0.2em]">OPERACIONES</p>
+        </div>
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="w-9 h-9 rounded-full border border-nrlx-border bg-nrlx-el flex items-center justify-center text-nrlx-text"
+        >
+          <Menu size={16} />
+        </button>
+      </header>
 
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 rounded-t-2xl bg-nrlx-surface border-t border-nrlx-border z-50">
         <div className="h-full grid grid-cols-4 gap-2 px-3">
@@ -123,26 +156,66 @@ export function Sidebar() {
             <FileText size={17} />
             Solicitudes
           </Link>
-          <Link
-            href="/perfil"
-            className={`mt-2 h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-medium transition-colors ${
-              pathname.startsWith('/perfil')
-                ? 'text-nrlx-accent bg-nrlx-accent/10'
-                : 'text-nrlx-muted'
-            }`}
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="mt-2 h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-medium text-nrlx-muted"
           >
-            <User size={17} />
-            Perfil
-          </Link>
+            <Menu size={17} />
+            Menú
+          </button>
         </div>
       </nav>
-      <TransferFlow open={transferDrawerOpen} onClose={() => setTransferDrawerOpen(false)} />
 
-      {session?.user && (
-        <div className="lg:hidden fixed top-3 right-3 z-40 bg-nrlx-el border border-nrlx-border rounded-full w-9 h-9 flex items-center justify-center text-[10px] font-mono text-nrlx-text">
-          {initials || 'NN'}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-[90]">
+          <button className="absolute inset-0 bg-black/70" onClick={() => setMobileMenuOpen(false)} />
+          <aside className="absolute right-0 top-0 h-full w-[86%] max-w-[320px] border-l border-nrlx-border bg-nrlx-surface p-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-nrlx-text">Navegación</p>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-8 h-8 rounded-full border border-nrlx-border bg-nrlx-el flex items-center justify-center text-nrlx-muted"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <nav className="space-y-2 mb-4">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
+                      active
+                        ? 'border-nrlx-accent/40 bg-nrlx-accent/10 text-nrlx-accent'
+                        : 'border-nrlx-border bg-nrlx-el text-nrlx-muted'
+                    }`}
+                  >
+                    <Icon size={14} />
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </nav>
+            <div className="rounded-xl border border-nrlx-border bg-nrlx-el p-3">
+              <p className="text-xs text-nrlx-text truncate">{session?.user?.name || 'Usuario'}</p>
+              <p className="text-[10px] text-nrlx-muted truncate mt-1">{session?.user?.upn || session?.user?.email}</p>
+              <button
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                className="mt-3 w-full h-9 rounded-lg border border-nrlx-border bg-nrlx-el2 text-xs text-nrlx-muted"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          </aside>
         </div>
       )}
+
+      <TransferFlow open={transferDrawerOpen} onClose={() => setTransferDrawerOpen(false)} />
     </>
   )
 }
+

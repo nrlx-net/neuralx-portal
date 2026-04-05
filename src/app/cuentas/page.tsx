@@ -35,7 +35,7 @@ export default function CuentasPage() {
     return (
       <div className="min-h-screen bg-nrlx-bg">
         <Sidebar />
-        <main className="lg:ml-64 min-h-screen flex items-center justify-center">
+        <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 flex items-center justify-center">
           <div className="text-nrlx-muted font-mono text-sm animate-pulse">Cargando cuentas...</div>
         </main>
       </div>
@@ -45,7 +45,7 @@ export default function CuentasPage() {
   return (
     <div className="min-h-screen bg-nrlx-bg">
       <Sidebar />
-      <main className="lg:ml-64 min-h-screen pb-20 lg:pb-0">
+      <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 pb-20 lg:pb-0">
         <div className="p-6 lg:p-8 max-w-5xl">
           <div className="mb-8 pt-2 lg:pt-0">
             <h1 className="text-2xl font-medium text-nrlx-text">Cuentas internas</h1>
