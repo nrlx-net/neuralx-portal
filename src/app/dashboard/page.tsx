@@ -329,6 +329,9 @@ export default function DashboardPage() {
               <Link href="/regulatorio" onClick={() => setMoreSheetOpen(false)} className="block rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-sm text-nrlx-text">
                 Procesos regulatorios
               </Link>
+              <Link href="/dashboard/credenciales-operaciones" onClick={() => setMoreSheetOpen(false)} className="block rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-sm text-nrlx-text">
+                Emitir credencial verificada
+              </Link>
               <Link href="/cuentas" onClick={() => setMoreSheetOpen(false)} className="block rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-sm text-nrlx-text">
                 Agregar cuenta
               </Link>

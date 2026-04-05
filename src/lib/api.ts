@@ -174,6 +174,24 @@ export interface EngineTxResult {
   error: null | { code: string; step: number | null; detail: string | null }
 }
 
+export interface CredencialOperacionesEmision {
+  state: string
+  status: 'created' | 'request_retrieved' | 'issuance_successful' | 'issuance_error'
+  qrCode?: string | null
+  url?: string | null
+  expiry?: string | null
+  requestId?: string | null
+}
+
+export interface CredencialOperacionesEstado {
+  state: string
+  status: 'created' | 'request_retrieved' | 'issuance_successful' | 'issuance_error'
+  requestId?: string | null
+  error_code?: string | null
+  error_message?: string | null
+  updated_at?: string | null
+}
+
 export interface TransferRequestPayload {
   flow: 'transfer'
   tipo: 'transferencia_interna' | 'transferencia_externa' | 'retiro_banco'
@@ -280,6 +298,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ original_tx_id, reference }),
     }),
+
+  emitirCredencialOperaciones: () =>
+    apiFetch<CredencialOperacionesEmision>('/api/verifiedid/issuance/request', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  estadoCredencialOperaciones: (state: string) =>
+    apiFetch<CredencialOperacionesEstado>(
+      `/api/verifiedid/issuance/status/${encodeURIComponent(state)}`
+    ),
 
   getRegulatorios: (estatus?: string) =>
     apiFetch<{ procesos: ProcesoRegulatorio[]; total: number }>(

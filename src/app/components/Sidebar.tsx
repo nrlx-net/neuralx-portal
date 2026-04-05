@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowLeftRight, FileText, Gavel, Home, Landmark, User } from 'lucide-react'
+import { ArrowLeftRight, FileText, Gavel, Home, Landmark, ShieldCheck, User } from 'lucide-react'
 import { TransferFlow } from './TransferFlow'
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { href: '/transferir', label: 'Transferir', icon: ArrowLeftRight },
   { href: '/solicitudes', label: 'Solicitudes', icon: FileText },
   { href: '/regulatorio', label: 'Regulatorio', icon: Gavel },
+  { href: '/dashboard/credenciales-operaciones', label: 'Credenciales VC', icon: ShieldCheck },
   { href: '/perfil', label: 'Perfil', icon: User },
 ]
 
