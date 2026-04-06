@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
 import {
   buildIssuancePayload,
   buildIssuanceState,
@@ -9,12 +9,57 @@ import {
   normalizeIssuanceResponse,
 } from '@/lib/verifiedid'
 
+function splitNameParts(fullName: string | null | undefined) {
+  const clean = (fullName || '').trim().replace(/\s+/g, ' ')
+  if (!clean) return { given_name: '', family_name: '' }
+  const parts = clean.split(' ')
+  if (parts.length === 1) return { given_name: parts[0], family_name: parts[0] }
+  return {
+    given_name: parts.slice(0, -1).join(' '),
+    family_name: parts[parts.length - 1],
+  }
+}
+
 export async function POST() {
   const { error, upn } = await requireAuth()
   if (error) return error
 
   try {
     const cfg = getVerifiedIdConfig()
+    const db = await getDb()
+    const user = await getUserByUpnOrEmail(db, upn!)
+    if (!user) {
+      return NextResponse.json({ detail: 'Usuario autenticado no encontrado en base de datos' }, { status: 404 })
+    }
+
+    const nameParts = splitNameParts(user.nombre_completo || user.email || upn)
+    const claims = {
+      given_name: nameParts.given_name,
+      family_name: nameParts.family_name,
+      email: String(user.email || upn || ''),
+      department: String(user.departamento || 'Operations'),
+      jobTitle: String(user.puesto || 'Operator'),
+      extension_authorizationLevel: process.env.VERIFIEDID_AUTHORIZATION_LEVEL || 'standard',
+    }
+
+    const missingClaims = ['given_name', 'family_name', 'email', 'department', 'jobTitle'].filter(
+      (k) => !String((claims as any)[k] || '').trim()
+    )
+    if (missingClaims.length > 0) {
+      return NextResponse.json(
+        {
+          detail: `Faltan claims requeridos para emisión: ${missingClaims.join(', ')}`,
+          user_preview: {
+            nombre_completo: user.nombre_completo,
+            email: user.email,
+            departamento: user.departamento,
+            puesto: user.puesto,
+          },
+        },
+        { status: 400 }
+      )
+    }
+
     const cfgIssues: string[] = []
     if (!cfg.authority.includes(cfg.tenantId)) {
       cfgIssues.push('VERIFIEDID_AUTHORITY no coincide con VERIFIEDID_TENANT_ID')
@@ -42,7 +87,10 @@ export async function POST() {
     }
 
     const state = buildIssuanceState()
-    const payload = buildIssuancePayload(state)
+    const payload = {
+      ...buildIssuancePayload(state),
+      claims,
+    }
     const accessToken = await getVerifiedIdAccessToken()
 
     const msRes = await fetch(cfg.createUrl, {
@@ -76,7 +124,6 @@ export async function POST() {
     }
 
     const normalized = normalizeIssuanceResponse(msData)
-    const db = await getDb()
     await db
       .request()
       .input('state', state)
