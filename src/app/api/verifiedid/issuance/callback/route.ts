@@ -58,3 +58,8 @@ export async function POST(request: Request) {
   }
 }
 
+export async function GET() {
+  // Health/readability endpoint for providers that probe callback URL.
+  return NextResponse.json({ ok: true, endpoint: 'verifiedid-callback' })
+}
+
