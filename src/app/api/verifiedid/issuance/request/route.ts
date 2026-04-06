@@ -9,6 +9,28 @@ import {
   normalizeIssuanceResponse,
 } from '@/lib/verifiedid'
 
+function normalizeSqlDateTime(value: unknown): Date | null {
+  if (!value) return null
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value
+  }
+
+  const raw = String(value).trim()
+  if (!raw) return null
+
+  // Supports ISO strings and RFC822-like timestamps from upstream APIs.
+  const parsed = new Date(raw)
+  if (!Number.isNaN(parsed.getTime())) return parsed
+
+  const numeric = Number(raw)
+  if (Number.isFinite(numeric)) {
+    const epoch = new Date(numeric)
+    return Number.isNaN(epoch.getTime()) ? null : epoch
+  }
+
+  return null
+}
+
 function splitNameParts(fullName: string | null | undefined) {
   const clean = (fullName || '').trim().replace(/\s+/g, ' ')
   if (!clean) return { given_name: '', family_name: '' }
@@ -124,6 +146,7 @@ export async function POST() {
     }
 
     const normalized = normalizeIssuanceResponse(msData)
+    const expiryAt = normalizeSqlDateTime(normalized.expiry)
     await db
       .request()
       .input('state', state)
@@ -134,7 +157,7 @@ export async function POST() {
       .input('authority_did', cfg.authority)
       .input('qr_code', normalized.qrCode)
       .input('deep_link', normalized.url)
-      .input('expiry_at', normalized.expiry)
+      .input('expiry_at', expiryAt)
       .input('raw_request_payload', JSON.stringify(payload))
       .input('raw_response_payload', JSON.stringify(msData))
       .execute('dbo.sp_verifiedid_create_request')
