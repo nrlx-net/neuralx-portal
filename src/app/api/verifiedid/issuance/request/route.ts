@@ -15,6 +15,32 @@ export async function POST() {
 
   try {
     const cfg = getVerifiedIdConfig()
+    const cfgIssues: string[] = []
+    if (!cfg.authority.includes(cfg.tenantId)) {
+      cfgIssues.push('VERIFIEDID_AUTHORITY no coincide con VERIFIEDID_TENANT_ID')
+    }
+    if (!cfg.manifestUrl.includes(`/tenants/${cfg.tenantId}/`)) {
+      cfgIssues.push('VERIFIEDID_MANIFEST_URL no coincide con VERIFIEDID_TENANT_ID')
+    }
+    if (!cfg.credentialType || cfg.credentialType.trim().length < 3) {
+      cfgIssues.push('VERIFIEDID_CREDENTIAL_TYPE inválido')
+    }
+    if (cfgIssues.length > 0) {
+      return NextResponse.json(
+        {
+          detail: `Configuración Verified ID inválida: ${cfgIssues.join(' | ')}`,
+          config_preview: {
+            tenantId: cfg.tenantId,
+            authority: cfg.authority,
+            credentialType: cfg.credentialType,
+            manifestUrl: cfg.manifestUrl,
+            callbackUrl: cfg.callbackUrl,
+          },
+        },
+        { status: 400 }
+      )
+    }
+
     const state = buildIssuanceState()
     const payload = buildIssuancePayload(state)
     const accessToken = await getVerifiedIdAccessToken()
@@ -30,18 +56,20 @@ export async function POST() {
     })
     const msData = await msRes.json().catch(() => ({}))
     if (!msRes.ok) {
-      const raw =
-        typeof msData === 'string'
-          ? msData
-          : msData?.error_description ||
-            msData?.error?.message ||
-            msData?.message ||
-            JSON.stringify(msData)
+      const raw = typeof msData === 'string' ? msData : JSON.stringify(msData)
       return NextResponse.json(
         {
           detail: `Error en createIssuanceRequest: ${raw}`,
           upstream_status: msRes.status,
           upstream_error: msData,
+          request_payload: payload,
+          config_preview: {
+            tenantId: cfg.tenantId,
+            authority: cfg.authority,
+            credentialType: cfg.credentialType,
+            manifestUrl: cfg.manifestUrl,
+            callbackUrl: cfg.callbackUrl,
+          },
         },
         { status: msRes.status }
       )
