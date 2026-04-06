@@ -30,13 +30,18 @@ export async function POST() {
     })
     const msData = await msRes.json().catch(() => ({}))
     if (!msRes.ok) {
-      return NextResponse.json(
-        {
-          detail:
+      const raw =
+        typeof msData === 'string'
+          ? msData
+          : msData?.error_description ||
             msData?.error?.message ||
             msData?.message ||
-            msData?.error_description ||
-            'Error en createIssuanceRequest',
+            JSON.stringify(msData)
+      return NextResponse.json(
+        {
+          detail: `Error en createIssuanceRequest: ${raw}`,
+          upstream_status: msRes.status,
+          upstream_error: msData,
         },
         { status: msRes.status }
       )

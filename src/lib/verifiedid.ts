@@ -87,7 +87,9 @@ export function buildIssuanceState() {
 
 export function buildIssuancePayload(state: string) {
   const cfg = getVerifiedIdConfig()
+  const purpose = process.env.VERIFIEDID_CLIENT_PURPOSE || 'Credencial institucional de operaciones'
   return {
+    includeQRCode: true,
     callback: {
       url: cfg.callbackUrl,
       state,
@@ -96,6 +98,7 @@ export function buildIssuancePayload(state: string) {
     authority: cfg.authority,
     registration: {
       clientName: cfg.clientName,
+      purpose,
     },
     type: cfg.credentialType,
     manifest: cfg.manifestUrl,
