@@ -47,7 +47,7 @@ export async function POST() {
   if (error) return error
 
   try {
-    const cfg = getVerifiedIdConfig()
+    const cfg = getVerifiedIdConfig(upn)
     const db = await getDb()
     const user = await getUserByUpnOrEmail(db, upn!)
     if (!user) {

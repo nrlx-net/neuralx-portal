@@ -6,13 +6,58 @@ type IssuanceStatus =
   | 'issuance_successful'
   | 'issuance_error'
 
+type CredentialProfile = {
+  credentialType: string
+  manifestUrl: string
+}
+
 function required(name: string, fallback?: string) {
   const value = process.env[name] || fallback
   if (!value) throw new Error(`Falta variable de entorno: ${name}`)
   return value
 }
 
-export function getVerifiedIdConfig() {
+function resolveCredentialProfileForUpn(
+  upn: string | null | undefined,
+  defaults: CredentialProfile
+): CredentialProfile {
+  const login = (upn || '').trim().toLowerCase()
+  if (!login) return defaults
+
+  // Admin global principal conserva la credencial institucional actual.
+  if (login === 'malvarez@neuralxglobal.net') {
+    return defaults
+  }
+
+  const boardLegalUsers = new Set([
+    'emro_nrlx@neuralxglobal.net',
+    'lgcf_nrlx@neuralxglobal.net',
+  ])
+  if (boardLegalUsers.has(login)) {
+    return {
+      credentialType: 'NeuralXGlobalBoardLegalComplianceCredential',
+      manifestUrl:
+        'https://verifiedid.did.msidentity.com/v1.0/tenants/155d2fca-bfb9-46c0-9ace-05a0d8e17eee/verifiableCredentials/contracts/eaeffb71-32df-18e4-1fcc-4c38a49da03e/manifest',
+    }
+  }
+
+  const assetMgmtUsers = new Set([
+    'jlor_nrlx@neuralxglobal.net',
+    'neuralx@neuralxglobal.net',
+    'jdoh_nrlx@neuralxglobal.net',
+  ])
+  if (assetMgmtUsers.has(login)) {
+    return {
+      credentialType: 'NeuralXGlobalAssetManagementDirectorateCredential',
+      manifestUrl:
+        'https://verifiedid.did.msidentity.com/v1.0/tenants/155d2fca-bfb9-46c0-9ace-05a0d8e17eee/verifiableCredentials/contracts/5873bf05-3235-31b3-b0de-8b1ac442b8b3/manifest',
+    }
+  }
+
+  return defaults
+}
+
+export function getVerifiedIdConfig(upn?: string | null) {
   const tenantId = required('VERIFIEDID_TENANT_ID', process.env.AZURE_TENANT_ID)
   const clientId = required('VERIFIEDID_CLIENT_ID', process.env.AZURE_CLIENT_ID)
   const clientSecret = required('VERIFIEDID_CLIENT_SECRET', process.env.AZURE_CLIENT_SECRET)
@@ -26,15 +71,20 @@ export function getVerifiedIdConfig() {
     'VERIFIEDID_AUTHORITY',
     'did:web:verifiedid.entra.microsoft.com:155d2fca-bfb9-46c0-9ace-05a0d8e17eee:ff36a60c-a69d-51c5-e7dc-63d7031c0531'
   )
-  const credentialType = required(
+  const defaultCredentialType = required(
     'VERIFIEDID_CREDENTIAL_TYPE',
     'NeuralXGlobalOperationsDirectorateCredential'
   )
-  const manifestUrl = required(
+  const defaultManifestUrl = required(
     'VERIFIEDID_MANIFEST_URL',
     'https://verifiedid.did.msidentity.com/v1.0/tenants/155d2fca-bfb9-46c0-9ace-05a0d8e17eee/verifiableCredentials/contracts/089d6553-77ba-0bf1-72c3-129cda2792f1/manifest'
   )
   const clientName = process.env.VERIFIEDID_CLIENT_NAME || 'NeuralX Portal'
+  const profile = resolveCredentialProfileForUpn(upn, {
+    credentialType: defaultCredentialType,
+    manifestUrl: defaultManifestUrl,
+  })
+
   return {
     tenantId,
     clientId,
@@ -44,14 +94,16 @@ export function getVerifiedIdConfig() {
     callbackUrl,
     callbackApiKey,
     authority,
-    credentialType,
-    manifestUrl,
+    credentialType: profile.credentialType,
+    manifestUrl: profile.manifestUrl,
+    defaultCredentialType,
+    defaultManifestUrl,
     clientName,
   }
 }
 
 export async function getVerifiedIdAccessToken() {
-  const cfg = getVerifiedIdConfig()
+  const cfg = getVerifiedIdConfig(null)
   const tokenUrl = `https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/token`
 
   const body = new URLSearchParams()
