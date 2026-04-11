@@ -55,32 +55,42 @@ async function enqueueEmail(db: ConnectionPool, input: {
     timestampIso: new Date().toISOString(),
   })
 
-  await db.request()
-    .input('event_type', input.eventType)
-    .input('id_usuario_actor', input.actorUserId || null)
-    .input('id_usuario_destino', input.targetUser.id_usuario)
-    .input('recipient_email', to)
-    .input('entity_type', input.entityType)
-    .input('entity_id', input.entityId)
-    .input('payload_json', JSON.stringify(input.payload || {}))
-    .input('subject', email.subject)
-    .input('body_html', email.html)
-    .input('body_text', email.text)
-    .input('provider', 'microsoft-graph')
-    .query(`
-      EXEC dbo.sp_notification_enqueue_email
-        @event_type,
-        @id_usuario_actor,
-        @id_usuario_destino,
-        @recipient_email,
-        @entity_type,
-        @entity_id,
-        @payload_json,
-        @subject,
-        @body_html,
-        @body_text,
-        @provider
-    `)
+  try {
+    await db.request()
+      .input('event_type', input.eventType)
+      .input('id_usuario_actor', input.actorUserId || null)
+      .input('id_usuario_destino', input.targetUser.id_usuario)
+      .input('recipient_email', to)
+      .input('entity_type', input.entityType)
+      .input('entity_id', input.entityId)
+      .input('payload_json', JSON.stringify(input.payload || {}))
+      .input('subject', email.subject)
+      .input('body_html', email.html)
+      .input('body_text', email.text)
+      .input('provider', 'microsoft-graph')
+      .query(`
+        EXEC dbo.sp_notification_enqueue_email
+          @event_type,
+          @id_usuario_actor,
+          @id_usuario_destino,
+          @recipient_email,
+          @entity_type,
+          @entity_id,
+          @payload_json,
+          @subject,
+          @body_html,
+          @body_text,
+          @provider
+      `)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[notification] sp_notification_enqueue_email failed', {
+      eventType: input.eventType,
+      recipient: to,
+      detail: msg,
+    })
+    throw err
+  }
 }
 
 async function getUserById(db: ConnectionPool, idUsuario: string) {

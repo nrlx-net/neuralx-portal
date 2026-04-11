@@ -35,8 +35,8 @@ export async function GET() {
       userId: user.id_usuario,
       actorUserId: user.id_usuario,
       userName: user.nombre_completo || sessionName || null,
-      email: user.email || null,
-      upn: user.entra_id_upn || upn || null,
+      email: user.email || session?.user?.email || null,
+      upn: user.entra_id_upn || session?.user?.upn || upn || null,
     })
 
     return NextResponse.json(user)

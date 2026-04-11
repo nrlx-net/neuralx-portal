@@ -26,7 +26,7 @@ function getBankIconUrl(cuenta: CuentaBancariaVinculada) {
 }
 
 export default function SolicitudesPage() {
-  const { status } = useSession()
+  const { data: session, status } = useSession()
   const [cuentasInternas, setCuentasInternas] = useState<CuentaBancaria[]>([])
   const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancariaVinculada[]>([])
   const [tab, setTab] = useState<Tab>('pendientes')
@@ -44,6 +44,11 @@ export default function SolicitudesPage() {
   const [error, setError] = useState<string | null>(null)
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
   const [searchDestino, setSearchDestino] = useState('')
+  const [processingActionId, setProcessingActionId] = useState<string | null>(null)
+
+  const isAdmin = ['malvarez@neuralxglobal.net', 'neuralx@neuralxglobal.net'].includes(
+    String(session?.user?.upn || session?.user?.email || '').toLowerCase()
+  )
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -191,6 +196,26 @@ export default function SolicitudesPage() {
       setError(err.message || 'No se pudo registrar la transferencia')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleAdminAction(action: 'aprobar' | 'rechazar', idSolicitud: string) {
+    try {
+      setProcessingActionId(idSolicitud)
+      setError(null)
+      setFeedback(null)
+      if (action === 'aprobar') {
+        await api.adminAprobar(idSolicitud)
+        setFeedback(`Transferencia aprobada y ejecutada (${idSolicitud}).`)
+      } else {
+        await api.adminRechazar(idSolicitud)
+        setFeedback(`Transferencia rechazada (${idSolicitud}).`)
+      }
+      await loadInitialData()
+    } catch (err: any) {
+      setError(err.message || `No se pudo ${action} la transferencia`)
+    } finally {
+      setProcessingActionId(null)
     }
   }
 
@@ -481,7 +506,7 @@ export default function SolicitudesPage() {
                 <div className="bg-nrlx-card/50 border border-nrlx-border/50 rounded-lg p-3">
                   <p className="text-[10px] font-mono text-nrlx-warning">
                     {transferMode === 'interna'
-                      ? 'Las transferencias internas también quedan registradas y pasan por flujo de aprobación.'
+                      ? 'Las transferencias internas se ejecutan de inmediato y se registran automáticamente.'
                       : 'Las transferencias externas requieren aprobación del administrador antes de procesarse.'}
                   </p>
                 </div>
@@ -592,6 +617,26 @@ export default function SolicitudesPage() {
                       )}
                       {sol.comentario_admin && (
                         <p className="text-xs italic text-nrlx-muted mt-2">{sol.comentario_admin}</p>
+                      )}
+                      {isAdmin &&
+                        sol.estatus.toLowerCase() === 'pendiente' &&
+                        (sol.tipo === 'transferencia_externa' || sol.tipo === 'transferencia_interna') && (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => void handleAdminAction('aprobar', sol.id_solicitud)}
+                            disabled={processingActionId === sol.id_solicitud}
+                            className="h-9 rounded-lg border border-nrlx-success/40 bg-nrlx-success/10 text-xs text-nrlx-success disabled:opacity-60"
+                          >
+                            {processingActionId === sol.id_solicitud ? 'Procesando...' : 'Aprobar'}
+                          </button>
+                          <button
+                            onClick={() => void handleAdminAction('rechazar', sol.id_solicitud)}
+                            disabled={processingActionId === sol.id_solicitud}
+                            className="h-9 rounded-lg border border-nrlx-danger/40 bg-nrlx-danger/10 text-xs text-nrlx-danger disabled:opacity-60"
+                          >
+                            {processingActionId === sol.id_solicitud ? 'Procesando...' : 'Rechazar'}
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}

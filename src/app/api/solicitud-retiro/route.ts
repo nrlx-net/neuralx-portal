@@ -178,15 +178,14 @@ export async function POST(request: Request) {
           .input('monto', monto)
           .input('moneda', moneda)
           .input('concepto', concepto || 'Transferencia interna')
-          .input('aprobado_por', user.id_usuario)
           .input('datos_extra', JSON.stringify(enrichedExtraPayload))
           .query(`
             INSERT INTO solicitudes (
               id_solicitud, id_usuario, tipo, nxg_origen, nxg_destino, id_cuenta_banco,
-              monto, moneda, concepto, estatus, aprobado_por, fecha_resolucion, datos_extra
+              monto, moneda, concepto, estatus, fecha_resolucion, datos_extra
             ) VALUES (
               @id_solicitud, @id_usuario, @tipo, @nxg_origen, @nxg_destino, @id_cuenta_banco,
-              @monto, @moneda, @concepto, N'ejecutada', @aprobado_por, SYSUTCDATETIME(), @datos_extra
+              @monto, @moneda, @concepto, N'ejecutada', SYSUTCDATETIME(), @datos_extra
             )
           `)
 
@@ -201,16 +200,21 @@ export async function POST(request: Request) {
           .input('estatus', 'ejecutada')
           .input('referencia', referencia || idSolicitud)
           .query(`
-            IF NOT EXISTS (SELECT 1 FROM transacciones WHERE id_transaccion = @id_transaccion)
-            BEGIN
-              INSERT INTO transacciones (
-                id_transaccion, id_cuenta_origen, id_cuenta_destino, fecha_hora, monto, moneda,
-                tipo_transaccion, concepto, estatus, referencia, created_at
-              ) VALUES (
-                @id_transaccion, @id_cuenta_origen, @id_cuenta_destino, SYSUTCDATETIME(), @monto, @moneda,
-                @tipo_transaccion, @concepto, @estatus, @referencia, SYSUTCDATETIME()
-              )
-            END
+            BEGIN TRY
+              IF NOT EXISTS (SELECT 1 FROM transacciones WHERE id_transaccion = @id_transaccion)
+              BEGIN
+                INSERT INTO transacciones (
+                  id_transaccion, id_cuenta_origen, id_cuenta_destino, fecha_hora, monto, moneda,
+                  tipo_transaccion, concepto, estatus, referencia, created_at
+                ) VALUES (
+                  @id_transaccion, @id_cuenta_origen, @id_cuenta_destino, SYSUTCDATETIME(), @monto, @moneda,
+                  @tipo_transaccion, @concepto, @estatus, @referencia, SYSUTCDATETIME()
+                )
+              END
+            END TRY
+            BEGIN CATCH
+              -- No bloquear la operación ya ejecutada si falla solo el espejo en transacciones.
+            END CATCH
           `)
 
         await db.request()
@@ -219,8 +223,12 @@ export async function POST(request: Request) {
           .input('registro_id', idSolicitud)
           .input('detalle', `Transferencia interna ejecutada · TX ${txId} · ${monto} ${moneda}`)
           .query(`
-            INSERT INTO audit_log (id_usuario, accion, tabla_afectada, registro_id, detalle)
-            VALUES (@id_usuario, @accion, N'solicitudes', @registro_id, @detalle)
+            BEGIN TRY
+              INSERT INTO audit_log (id_usuario, accion, tabla_afectada, registro_id, detalle)
+              VALUES (@id_usuario, @accion, N'solicitudes', @registro_id, @detalle)
+            END TRY
+            BEGIN CATCH
+            END CATCH
           `)
 
         await safeQueueTransferInternalExecuted(db, {
