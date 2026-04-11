@@ -166,7 +166,7 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
     try {
       setSending(true)
       setError(null)
-      await api.crearTransferencia({
+      const res = await api.crearTransferencia({
         flow: 'transfer',
         tipo:
           selected.method === 'interna'
@@ -174,6 +174,7 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
             : selected.method === 'banco'
             ? 'transferencia_externa'
             : 'transferencia_externa',
+        nxg_origen: originAccountId,
         nxg_destino: selected.nxgDestino,
         id_cuenta_banco: selected.idCuentaBanco,
         beneficiario_id: selected.beneficiarioId,
@@ -185,6 +186,9 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
           flow_step: 'confirmed',
         },
       })
+      if (!res?.exito) {
+        throw new Error('No se pudo registrar la transferencia')
+      }
       setSuccess(true)
       setStep(3)
     } catch (err: any) {

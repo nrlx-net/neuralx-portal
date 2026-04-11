@@ -205,6 +205,7 @@ export interface CredencialOperacionesEstado {
 export interface TransferRequestPayload {
   flow: 'transfer'
   tipo: 'transferencia_interna' | 'transferencia_externa' | 'retiro_banco'
+  nxg_origen?: string
   nxg_destino?: string
   id_cuenta_banco?: string
   beneficiario_id?: string
@@ -213,6 +214,15 @@ export interface TransferRequestPayload {
   concepto?: string
   referencia?: string
   datos_extra?: Record<string, any>
+}
+
+export interface TransferRequestResponse {
+  exito: boolean
+  id_solicitud: string | null
+  monto: number
+  moneda: string
+  estatus: string
+  mensaje: string
 }
 
 export interface SolicitudRetiroPayload {
@@ -292,7 +302,7 @@ export const api = {
     ),
 
   crearTransferencia: (payload: TransferRequestPayload) =>
-    apiFetch('/api/solicitud-retiro', {
+    apiFetch<TransferRequestResponse>('/api/solicitud-retiro', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

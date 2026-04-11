@@ -152,6 +152,7 @@ export default function SolicitudesPage() {
       const payload: TransferRequestPayload = {
         flow: 'transfer',
         tipo: transferMode === 'interna' ? 'transferencia_interna' : 'transferencia_externa',
+        nxg_origen: cuentaOrigen,
         moneda,
         monto: montoNumber,
         concepto: concepto.trim() || undefined,
@@ -165,13 +166,16 @@ export default function SolicitudesPage() {
         payload.datos_extra = { ux_flow: 'solicitudes', transfer_mode: 'externa' }
       }
 
-      await api.crearTransferencia(payload)
-      setFeedback('Solicitud enviada correctamente.')
+      const result = await api.crearTransferencia(payload)
+      if (!result?.exito) {
+        throw new Error('No se pudo registrar la transferencia')
+      }
+      setFeedback(`Transferencia registrada correctamente (${result.id_solicitud || 'sin folio'}).`)
       setMonto('')
       setConcepto('')
       await loadSolicitudes(tab)
     } catch (err: any) {
-      setError(err.message || 'No se pudo crear la solicitud')
+      setError(err.message || 'No se pudo registrar la transferencia')
     } finally {
       setSubmitting(false)
     }
@@ -252,7 +256,7 @@ export default function SolicitudesPage() {
                   onClick={() => setTab('pendientes')}
                   className="w-full rounded-lg border border-nrlx-border bg-nrlx-el px-3 py-2 text-left text-xs text-nrlx-text"
                 >
-                  Ver pendientes
+                  Ver transferencias pendientes
                 </button>
                 <button
                   onClick={() => setTab('todas')}
@@ -284,7 +288,7 @@ export default function SolicitudesPage() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="bg-nrlx-surface border border-nrlx-border rounded-xl p-6">
               <h2 className="text-xs font-mono text-nrlx-muted tracking-wider mb-4">
-                NUEVA SOLICITUD
+                NUEVA TRANSFERENCIA
               </h2>
 
               <div className="space-y-4">
@@ -492,7 +496,7 @@ export default function SolicitudesPage() {
             <div className="bg-nrlx-surface border border-nrlx-border rounded-xl p-6">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <h2 className="text-xs font-mono text-nrlx-muted tracking-wider">
-                  HISTORIAL DE SOLICITUDES
+                  HISTORIAL DE TRANSFERENCIAS
                 </h2>
                 <button
                   onClick={() => loadSolicitudes(tab)}
@@ -525,7 +529,7 @@ export default function SolicitudesPage() {
 
               {loading || loadingHistorial || status === 'loading' ? (
                 <div className="text-center py-12">
-                  <p className="text-sm text-nrlx-muted">Cargando solicitudes...</p>
+                  <p className="text-sm text-nrlx-muted">Cargando transferencias...</p>
                 </div>
               ) : solicitudes.length === 0 ? (
                 <div className="text-center py-12">
@@ -542,7 +546,7 @@ export default function SolicitudesPage() {
                     <line x1="24" y1="33" x2="50" y2="33" stroke="currentColor" />
                     <line x1="24" y1="42" x2="42" y2="42" stroke="currentColor" />
                   </svg>
-                  <p className="text-sm text-nrlx-muted">No hay solicitudes en este filtro.</p>
+                  <p className="text-sm text-nrlx-muted">No hay transferencias en este filtro.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -566,7 +570,7 @@ export default function SolicitudesPage() {
                       </p>
                       <p className="text-xs text-nrlx-muted mt-1">{sol.concepto || '—'}</p>
                       <p className="text-[10px] font-mono text-nrlx-muted mt-2">
-                        Solicitud: {new Date(sol.fecha_solicitud).toLocaleDateString('es-MX')}
+                        Registro: {new Date(sol.fecha_solicitud).toLocaleDateString('es-MX')}
                       </p>
                       {sol.fecha_resolucion && (
                         <p className="text-[10px] font-mono text-nrlx-muted mt-1">

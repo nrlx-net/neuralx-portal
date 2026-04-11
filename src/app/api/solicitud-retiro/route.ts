@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
 
+function makeTransferRequestId(maxLen: number) {
+  const now = new Date()
+  const yy = String(now.getFullYear()).slice(-2)
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mi = String(now.getMinutes()).padStart(2, '0')
+  const ss = String(now.getSeconds()).padStart(2, '0')
+  const rand = String(Math.floor(Math.random() * 9000 + 1000))
+  const base = `TRF-${yy}${mm}${dd}${hh}${mi}${ss}-${rand}`
+  return base.slice(0, Math.max(maxLen, 8))
+}
+
 export async function POST(request: Request) {
   const { error, upn, oid } = await requireAuth()
   if (error) return error
@@ -48,8 +61,14 @@ export async function POST(request: Request) {
     const nxgOrigen = nxgResult.recordset[0].nxg_id
 
     if (flow === 'transfer') {
-      const now = new Date()
-      const idSolicitud = `PAY-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}-${Math.floor(Math.random() * 900 + 100)}`
+      const idLenResult = await db.request().query(`
+        SELECT CHARACTER_MAXIMUM_LENGTH AS max_len
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'solicitudes'
+          AND COLUMN_NAME = 'id_solicitud'
+      `)
+      const maxLen = Number(idLenResult.recordset?.[0]?.max_len || 64)
+      const idSolicitud = makeTransferRequestId(maxLen)
       const tipoSolicitud = tipo || (nxg_destino ? 'transferencia_interna' : 'transferencia_externa')
 
       let destinoNxg: string | null = nxg_destino || null
@@ -177,7 +196,7 @@ export async function POST(request: Request) {
       .input('nxg_origen', nxgOrigen)
       .input('id_cuenta_banco', idCuentaBanco)
       .input('monto', monto)
-      .input('concepto', concepto || 'Transferencia externa a cuenta bancaria')
+      .input('concepto', concepto || 'Transferencia a cuenta bancaria externa')
       .query('EXEC dbo.sp_solicitar_retiro_banco @id_usuario, @nxg_origen, @id_cuenta_banco, @monto, @concepto')
 
     const result = execResult.recordset?.[0] || {}
