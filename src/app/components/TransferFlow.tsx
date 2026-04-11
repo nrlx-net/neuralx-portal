@@ -123,6 +123,19 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
     })
   }, [beneficiarios, query])
 
+  const cuentasInternasDestino = useMemo(
+    () =>
+      cuentasInternas
+        .filter((c) => c.id_cuenta !== originAccountId)
+        .filter((c) => {
+          const q = query.trim().toLowerCase()
+          if (!q) return true
+          const bag = `${c.id_cuenta} ${c.titular || ''} ${c.moneda}`.toLowerCase()
+          return bag.includes(q)
+        }),
+    [cuentasInternas, originAccountId, query]
+  )
+
   const cuentasBancariasValidas = useMemo(() => {
     return cuentasBancarias
       .filter((c) => {
@@ -241,6 +254,36 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
                 <MethodCard icon={Building2} label="Banco" onClick={() => { setNewMode('particular'); setShowAddForm(true) }} />
                 <MethodCard icon={Globe} label="Internacional" onClick={() => { setNewMode('empresa'); setShowAddForm(true) }} />
                 <MethodCard icon={Plus} label="Nuevo" onClick={() => { setNewMode('particular'); setShowAddForm(true) }} />
+              </div>
+
+              <p className="text-[11px] font-mono text-nrlx-muted mb-2">Cuentas internas de socios</p>
+              <div className="space-y-2 mb-4">
+                {cuentasInternasDestino.slice(0, 8).map((c) => (
+                  <button
+                    key={c.id_cuenta}
+                    onClick={() =>
+                      selectTarget({
+                        kind: 'cuenta',
+                        method: 'interna',
+                        id: c.id_cuenta,
+                        title: `${c.id_cuenta}${c.titular ? ` · ${c.titular}` : ''}`,
+                        subtitle: `Disponible ${formatearMoneda(c.saldo_disponible, c.moneda)}`,
+                        nxgDestino: c.id_cuenta,
+                      })
+                    }
+                    className="w-full rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-left hover:border-nrlx-accent/40 transition-colors"
+                  >
+                    <p className="text-sm text-nrlx-text">{c.id_cuenta}</p>
+                    <p className="text-[11px] text-nrlx-muted">
+                      {c.titular || 'Cuenta interna'} · {formatearMoneda(c.saldo_disponible, c.moneda)}
+                    </p>
+                  </button>
+                ))}
+                {cuentasInternasDestino.length === 0 && (
+                  <p className="text-[11px] text-nrlx-muted">
+                    No se encontraron cuentas internas con ese criterio.
+                  </p>
+                )}
               </div>
 
               <p className="text-[11px] font-mono text-nrlx-muted mb-2">Beneficiarios recientes</p>
@@ -377,6 +420,20 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
             placeholder="Concepto / referencia"
             className="w-full rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 text-sm text-nrlx-text placeholder:text-nrlx-muted"
           />
+          <div className="rounded-xl border border-nrlx-border/60 bg-nrlx-el px-3 py-2">
+            <p className="text-[10px] font-mono text-nrlx-muted mb-1">RESUMEN OPERATIVO</p>
+            <p className="text-xs text-nrlx-text">
+              Disponible en origen: {selectedOrigin ? formatearMoneda(selectedOrigin.saldo_disponible, selectedOrigin.moneda) : '—'}
+            </p>
+            <p className="text-xs text-nrlx-muted mt-1">
+              {selected?.method === 'interna'
+                ? 'Transferencia interna entre cuentas NXG.'
+                : 'Transferencia externa sujeta a aprobación y ejecución.'}
+            </p>
+            <p className="text-xs text-nrlx-muted mt-1">
+              Si la moneda final requiere conversión, el tipo de cambio se aplica al ejecutar en motor transaccional.
+            </p>
+          </div>
           <button
             onClick={() => setStep(3)}
             disabled={!monto || !originAccountId}

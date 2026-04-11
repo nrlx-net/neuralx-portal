@@ -3,7 +3,7 @@ import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
 
 export async function POST(request: Request) {
-  const { error, upn } = await requireAuth()
+  const { error, upn, oid } = await requireAuth()
   if (error) return error
 
   try {
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     }
 
     const db = await getDb()
-    const user = await getUserByUpnOrEmail(db, upn!)
+    const user = await getUserByUpnOrEmail(db, upn!, oid)
     if (!user) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
@@ -45,19 +45,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ detail: 'Sin cuenta interna NXG registrada' }, { status: 400 })
     }
 
-    const bancoReq = db.request().input('userId', user.id_usuario)
-    let bancoQuery = 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
-    if (id_cuenta_banco) {
-      bancoQuery += ' AND id_cuenta = @id_cuenta_banco'
-      bancoReq.input('id_cuenta_banco', id_cuenta_banco)
-    }
-    bancoQuery += ' ORDER BY id_cuenta'
-    const bancoResult = await bancoReq.query(bancoQuery)
-
-    if (bancoResult.recordset.length === 0) {
-      return NextResponse.json({ detail: 'Sin cuenta bancaria registrada' }, { status: 400 })
-    }
-
     const nxgOrigen = nxgResult.recordset[0].nxg_id
 
     if (flow === 'transfer') {
@@ -68,6 +55,40 @@ export async function POST(request: Request) {
       let destinoNxg: string | null = nxg_destino || null
       let cuentaBanco: string | null = id_cuenta_banco || null
       let extraPayload: any = datos_extra || null
+
+      if (tipoSolicitud === 'transferencia_interna') {
+        if (!destinoNxg) {
+          return NextResponse.json({ detail: 'nxg_destino es requerido para transferencias internas' }, { status: 400 })
+        }
+        if (destinoNxg === nxgOrigen) {
+          return NextResponse.json({ detail: 'La cuenta origen y destino no pueden ser la misma' }, { status: 400 })
+        }
+        const destinoInterno = await db.request()
+          .input('nxg_destino', destinoNxg)
+          .query(`
+            SELECT TOP 1 nxg_id
+            FROM cuentas_internas
+            WHERE nxg_id = @nxg_destino
+          `)
+        if (!destinoInterno.recordset[0]) {
+          return NextResponse.json({ detail: 'Cuenta destino interna no encontrada' }, { status: 404 })
+        }
+        cuentaBanco = null
+      } else {
+        const bancoReq = db.request().input('userId', user.id_usuario)
+        let bancoQuery = 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
+        if (id_cuenta_banco) {
+          bancoQuery += ' AND id_cuenta = @id_cuenta_banco'
+          bancoReq.input('id_cuenta_banco', id_cuenta_banco)
+        }
+        bancoQuery += ' ORDER BY id_cuenta'
+        const bancoResult = await bancoReq.query(bancoQuery)
+
+        if (bancoResult.recordset.length === 0) {
+          return NextResponse.json({ detail: 'Sin cuenta bancaria registrada' }, { status: 400 })
+        }
+        cuentaBanco = bancoResult.recordset[0].id_cuenta
+      }
 
       if (beneficiario_id) {
         const benResult = await db.request()
@@ -138,6 +159,17 @@ export async function POST(request: Request) {
       })
     }
 
+    const bancoReq = db.request().input('userId', user.id_usuario)
+    let bancoQuery = 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
+    if (id_cuenta_banco) {
+      bancoQuery += ' AND id_cuenta = @id_cuenta_banco'
+      bancoReq.input('id_cuenta_banco', id_cuenta_banco)
+    }
+    bancoQuery += ' ORDER BY id_cuenta'
+    const bancoResult = await bancoReq.query(bancoQuery)
+    if (bancoResult.recordset.length === 0) {
+      return NextResponse.json({ detail: 'Sin cuenta bancaria registrada' }, { status: 400 })
+    }
     const idCuentaBanco = bancoResult.recordset[0].id_cuenta
 
     const execResult = await db.request()

@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar } from '../components/Sidebar'
-import { api, CuentaBancaria, CuentaBancariaVinculada, Solicitud } from '@/lib/api'
-import { ArrowRightLeft, Building2, CheckCircle2, Clock3, RefreshCw, Search, XCircle } from 'lucide-react'
+import { api, CuentaBancaria, CuentaBancariaVinculada, Solicitud, TransferRequestPayload } from '@/lib/api'
+import { ArrowRightLeft, Building2, CheckCircle2, Clock3, RefreshCw, Search, Wallet, XCircle } from 'lucide-react'
 import { formatearMoneda } from '@/lib/balance'
 
 type Tab = 'pendientes' | 'completadas' | 'rechazadas' | 'todas'
+type TransferMode = 'interna' | 'externa'
 
 const BANK_ICON_FALLBACKS: Record<string, string> = {
   bbva: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/BBVA-icon.jpeg',
@@ -29,6 +30,7 @@ export default function SolicitudesPage() {
   const [cuentasInternas, setCuentasInternas] = useState<CuentaBancaria[]>([])
   const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancariaVinculada[]>([])
   const [tab, setTab] = useState<Tab>('pendientes')
+  const [transferMode, setTransferMode] = useState<TransferMode>('externa')
   const [cuentaOrigen, setCuentaOrigen] = useState('')
   const [cuentaDestino, setCuentaDestino] = useState('')
   const [moneda, setMoneda] = useState('MXN')
@@ -109,13 +111,27 @@ export default function SolicitudesPage() {
     }
   }
 
-  const cuentasDestinoFiltradas = cuentasBancarias.filter((cuenta) => {
+  const cuentasDestinoInternas = cuentasInternas.filter((cuenta) => cuenta.id_cuenta !== cuentaOrigen)
+
+  const cuentasExternasFiltradas = cuentasBancarias.filter((cuenta) => {
     const q = searchDestino.trim().toLowerCase()
     if (!q) return true
     const bag = `${cuenta.banco} ${cuenta.numero_cuenta || ''} ${cuenta.titular || ''} ${cuenta.id_cuenta}`.toLowerCase()
     return bag.includes(q)
   })
-  const cuentaDestinoSeleccionada = cuentasBancarias.find((c) => c.id_cuenta === cuentaDestino)
+
+  const cuentasInternasFiltradas = cuentasDestinoInternas.filter((cuenta) => {
+    const q = searchDestino.trim().toLowerCase()
+    if (!q) return true
+    const bag = `${cuenta.id_cuenta} ${cuenta.titular || ''} ${cuenta.moneda}`.toLowerCase()
+    return bag.includes(q)
+  })
+
+  const cuentaDestinoSeleccionada = transferMode === 'interna'
+    ? cuentasInternas.find((c) => c.id_cuenta === cuentaDestino)
+    : cuentasBancarias.find((c) => c.id_cuenta === cuentaDestino)
+
+  const origenSeleccionado = cuentasInternas.find((c) => c.id_cuenta === cuentaOrigen)
 
   async function handleSubmit() {
     const montoNumber = Number(monto)
@@ -124,18 +140,32 @@ export default function SolicitudesPage() {
       setError('Selecciona cuenta origen y cuenta destino')
       return
     }
+    if (transferMode === 'interna' && cuentaOrigen === cuentaDestino) {
+      setError('La cuenta origen y destino no pueden ser la misma')
+      return
+    }
 
     try {
       setSubmitting(true)
       setError(null)
       setFeedback(null)
-      await api.crearTransferenciaExterna({
+      const payload: TransferRequestPayload = {
+        flow: 'transfer',
+        tipo: transferMode === 'interna' ? 'transferencia_interna' : 'transferencia_externa',
+        moneda,
         monto: montoNumber,
         concepto: concepto.trim() || undefined,
-        moneda,
-        nxg_origen: cuentaOrigen,
-        id_cuenta_banco: cuentaDestino,
-      })
+      }
+
+      if (transferMode === 'interna') {
+        payload.nxg_destino = cuentaDestino
+        payload.datos_extra = { ux_flow: 'solicitudes', transfer_mode: 'interna' }
+      } else {
+        payload.id_cuenta_banco = cuentaDestino
+        payload.datos_extra = { ux_flow: 'solicitudes', transfer_mode: 'externa' }
+      }
+
+      await api.crearTransferencia(payload)
       setFeedback('Solicitud enviada correctamente.')
       setMonto('')
       setConcepto('')
@@ -155,9 +185,9 @@ export default function SolicitudesPage() {
           <div className="mb-8 pt-2 lg:pt-0">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h1 className="text-2xl font-medium text-nrlx-text">Transferencias externas</h1>
+                <h1 className="text-2xl font-medium text-nrlx-text">Transferencias operativas</h1>
                 <p className="text-xs text-nrlx-muted mt-1">
-                  Operaciones externas sujetas a aprobación administrativa
+                  Operaciones internas y externas sujetas a aprobación administrativa
                 </p>
               </div>
               <button
@@ -189,6 +219,36 @@ export default function SolicitudesPage() {
               </h2>
               <div className="space-y-2 mb-4">
                 <button
+                  onClick={() => {
+                    setTransferMode('interna')
+                    setCuentaDestino(cuentasDestinoInternas[0]?.id_cuenta || '')
+                    setSearchDestino('')
+                  }}
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-xs inline-flex items-center gap-2 ${
+                    transferMode === 'interna'
+                      ? 'border-nrlx-accent/40 bg-nrlx-accent/10 text-nrlx-accent'
+                      : 'border-nrlx-border bg-nrlx-el text-nrlx-text'
+                  }`}
+                >
+                  <Wallet size={12} />
+                  Transferencia interna
+                </button>
+                <button
+                  onClick={() => {
+                    setTransferMode('externa')
+                    setCuentaDestino(cuentasBancarias[0]?.id_cuenta || '')
+                    setSearchDestino('')
+                  }}
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-xs inline-flex items-center gap-2 ${
+                    transferMode === 'externa'
+                      ? 'border-nrlx-accent/40 bg-nrlx-accent/10 text-nrlx-accent'
+                      : 'border-nrlx-border bg-nrlx-el text-nrlx-text'
+                  }`}
+                >
+                  <Building2 size={12} />
+                  Transferencia externa
+                </button>
+                <button
                   onClick={() => setTab('pendientes')}
                   className="w-full rounded-lg border border-nrlx-border bg-nrlx-el px-3 py-2 text-left text-xs text-nrlx-text"
                 >
@@ -201,7 +261,14 @@ export default function SolicitudesPage() {
                   Ver historial completo
                 </button>
                 <button
-                  onClick={() => setSearchDestino('')}
+                  onClick={() => {
+                    setSearchDestino('')
+                    setCuentaDestino(
+                      transferMode === 'interna'
+                        ? (cuentasDestinoInternas[0]?.id_cuenta || '')
+                        : (cuentasBancarias[0]?.id_cuenta || '')
+                    )
+                  }}
                   className="w-full rounded-lg border border-nrlx-border bg-nrlx-el px-3 py-2 text-left text-xs text-nrlx-text inline-flex items-center gap-2"
                 >
                   <ArrowRightLeft size={12} />
@@ -243,6 +310,15 @@ export default function SolicitudesPage() {
                   </select>
                 </div>
 
+                {origenSeleccionado && (
+                  <div className="rounded-lg border border-nrlx-border/60 bg-nrlx-card/40 p-3">
+                    <p className="text-[10px] font-mono text-nrlx-muted mb-1">DISPONIBLE EN ORIGEN</p>
+                    <p className="text-sm text-nrlx-text font-mono">
+                      {formatearMoneda(origenSeleccionado.saldo_disponible, origenSeleccionado.moneda)}
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-[10px] font-mono text-nrlx-muted tracking-wider block mb-1.5">
                     MONTO
@@ -281,14 +357,14 @@ export default function SolicitudesPage() {
                     type="text"
                     value={concepto}
                     onChange={(e) => setConcepto(e.target.value)}
-                    placeholder="Descripción de la transferencia externa"
+                    placeholder={transferMode === 'interna' ? 'Descripción de la transferencia interna' : 'Descripción de la transferencia externa'}
                     className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-sm text-nrlx-text placeholder:text-nrlx-muted/40 focus:border-nrlx-accent/40 focus:outline-none transition-colors"
                   />
                 </div>
 
                 <div>
                   <label className="text-[10px] font-mono text-nrlx-muted tracking-wider block mb-1.5">
-                    CUENTA DESTINO EXTERNA
+                    {transferMode === 'interna' ? 'CUENTA DESTINO INTERNA' : 'CUENTA DESTINO EXTERNA'}
                   </label>
                   <div className="mb-2 h-9 rounded-lg border border-nrlx-border bg-nrlx-card px-3 flex items-center gap-2">
                     <Search size={13} className="text-nrlx-muted" />
@@ -300,51 +376,85 @@ export default function SolicitudesPage() {
                     />
                   </div>
                   <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
-                    {cuentasDestinoFiltradas.map((cuenta) => {
-                      const selected = cuenta.id_cuenta === cuentaDestino
-                      const iconUrl = getBankIconUrl(cuenta)
-                      return (
-                        <button
-                          key={cuenta.id_cuenta}
-                          type="button"
-                          onClick={() => setCuentaDestino(cuenta.id_cuenta)}
-                          className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
-                            selected
-                              ? 'border-nrlx-accent/40 bg-nrlx-accent/10'
-                              : 'border-nrlx-border bg-nrlx-card hover:border-nrlx-accent/20'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {iconUrl ? (
-                              <img
-                                src={iconUrl}
-                                alt={cuenta.banco}
-                                className="w-8 h-8 rounded-full object-cover border border-nrlx-border"
-                              />
-                            ) : (
+                    {transferMode === 'interna' ? (
+                      cuentasInternasFiltradas.map((cuenta) => {
+                        const selected = cuenta.id_cuenta === cuentaDestino
+                        return (
+                          <button
+                            key={cuenta.id_cuenta}
+                            type="button"
+                            onClick={() => setCuentaDestino(cuenta.id_cuenta)}
+                            className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+                              selected
+                                ? 'border-nrlx-accent/40 bg-nrlx-accent/10'
+                                : 'border-nrlx-border bg-nrlx-card hover:border-nrlx-accent/20'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-full border border-nrlx-border bg-nrlx-el flex items-center justify-center">
-                                <Building2 size={13} className="text-nrlx-muted" />
+                                <Wallet size={13} className="text-nrlx-muted" />
                               </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="text-xs text-nrlx-text truncate">
-                                {cuenta.titular || 'Titular no especificado'}
-                              </p>
-                              <p className="text-[11px] text-nrlx-muted truncate">
-                                {cuenta.banco} · {cuenta.numero_cuenta || cuenta.id_cuenta}
-                              </p>
+                              <div className="min-w-0">
+                                <p className="text-xs text-nrlx-text truncate">
+                                  {cuenta.id_cuenta} {cuenta.titular ? `· ${cuenta.titular}` : ''}
+                                </p>
+                                <p className="text-[11px] text-nrlx-muted truncate">
+                                  Disponible {formatearMoneda(cuenta.saldo_disponible, cuenta.moneda)}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      )
-                    })}
+                          </button>
+                        )
+                      })
+                    ) : (
+                      cuentasExternasFiltradas.map((cuenta) => {
+                        const selected = cuenta.id_cuenta === cuentaDestino
+                        const iconUrl = getBankIconUrl(cuenta)
+                        return (
+                          <button
+                            key={cuenta.id_cuenta}
+                            type="button"
+                            onClick={() => setCuentaDestino(cuenta.id_cuenta)}
+                            className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+                              selected
+                                ? 'border-nrlx-accent/40 bg-nrlx-accent/10'
+                                : 'border-nrlx-border bg-nrlx-card hover:border-nrlx-accent/20'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {iconUrl ? (
+                                <img
+                                  src={iconUrl}
+                                  alt={cuenta.banco}
+                                  className="w-8 h-8 rounded-full object-cover border border-nrlx-border"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full border border-nrlx-border bg-nrlx-el flex items-center justify-center">
+                                  <Building2 size={13} className="text-nrlx-muted" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-xs text-nrlx-text truncate">
+                                  {cuenta.titular || 'Titular no especificado'}
+                                </p>
+                                <p className="text-[11px] text-nrlx-muted truncate">
+                                  {cuenta.banco} · {cuenta.numero_cuenta || cuenta.id_cuenta}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })
+                    )}
                   </div>
                   {cuentaDestinoSeleccionada && (
                     <p className="text-[11px] text-nrlx-accent mt-2">
-                      Seleccionada: {cuentaDestinoSeleccionada.banco} · {cuentaDestinoSeleccionada.numero_cuenta || cuentaDestinoSeleccionada.id_cuenta}
+                      Seleccionada: {transferMode === 'interna'
+                        ? `${cuentaDestinoSeleccionada.id_cuenta} · ${(cuentaDestinoSeleccionada as CuentaBancaria).titular || 'Cuenta interna'}`
+                        : `${(cuentaDestinoSeleccionada as CuentaBancariaVinculada).banco} · ${(cuentaDestinoSeleccionada as CuentaBancariaVinculada).numero_cuenta || cuentaDestinoSeleccionada.id_cuenta}`}
                     </p>
                   )}
-                  {cuentasDestinoFiltradas.length === 0 && (
+                  {(transferMode === 'interna' ? cuentasInternasFiltradas.length === 0 : cuentasExternasFiltradas.length === 0) && (
                     <p className="text-[11px] text-nrlx-muted mt-2">
                       No hay coincidencias para tu búsqueda.
                     </p>
@@ -353,7 +463,9 @@ export default function SolicitudesPage() {
 
                 <div className="bg-nrlx-card/50 border border-nrlx-border/50 rounded-lg p-3">
                   <p className="text-[10px] font-mono text-nrlx-warning">
-                    Las transferencias externas requieren aprobación del administrador antes de procesarse.
+                    {transferMode === 'interna'
+                      ? 'Las transferencias internas también quedan registradas y pasan por flujo de aprobación.'
+                      : 'Las transferencias externas requieren aprobación del administrador antes de procesarse.'}
                   </p>
                 </div>
 
@@ -368,7 +480,11 @@ export default function SolicitudesPage() {
                       : 'bg-nrlx-accent/10 text-nrlx-accent border border-nrlx-accent/30 hover:bg-nrlx-accent/20'
                   }`}
                 >
-                  {submitting ? 'Enviando...' : 'Solicitar transferencia externa'}
+                  {submitting
+                    ? 'Enviando...'
+                    : transferMode === 'interna'
+                    ? 'Solicitar transferencia interna'
+                    : 'Solicitar transferencia externa'}
                 </button>
               </div>
             </div>
@@ -443,6 +559,11 @@ export default function SolicitudesPage() {
                         <StatusBadge status={sol.estatus} />
                       </div>
                       <p className="text-2xl font-mono text-nrlx-text">{formatearMoneda(sol.monto, sol.moneda)}</p>
+                      <p className="text-[11px] text-nrlx-muted mt-1">
+                        {sol.tipo} · Origen {sol.nxg_origen || '—'}
+                        {sol.nxg_destino ? ` · Destino ${sol.nxg_destino}` : ''}
+                        {sol.id_cuenta_banco ? ` · Banco ${sol.id_cuenta_banco}` : ''}
+                      </p>
                       <p className="text-xs text-nrlx-muted mt-1">{sol.concepto || '—'}</p>
                       <p className="text-[10px] font-mono text-nrlx-muted mt-2">
                         Solicitud: {new Date(sol.fecha_solicitud).toLocaleDateString('es-MX')}
