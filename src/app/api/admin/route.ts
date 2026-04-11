@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, requireAdmin } from '@/lib/auth-helpers'
 import { syncOperationalBalancesFromLedger } from '@/lib/ledger-sync'
+import { safeQueueTransferExternalDecision } from '@/lib/notification-outbox'
 
 export async function GET(request: Request) {
   const { error } = await requireAdmin()
@@ -89,6 +90,25 @@ export async function POST(request: Request) {
         .query('EXEC dbo.sp_aprobar_solicitud @id_admin, @id_solicitud, @comentario')
       const data = execResult.recordset?.[0] || {}
       await syncOperationalBalancesFromLedger(db)
+      const solicitudDataResult = await db.request()
+        .input('id_solicitud', data.id_solicitud || solicitudId)
+        .query(`
+          SELECT TOP 1 id_solicitud, id_usuario, monto, moneda, concepto
+          FROM solicitudes
+          WHERE id_solicitud = @id_solicitud
+        `)
+      const solicitud = solicitudDataResult.recordset[0]
+      if (solicitud?.id_usuario) {
+        await safeQueueTransferExternalDecision(db, {
+          actorUserId: idAdmin,
+          targetUserId: solicitud.id_usuario,
+          solicitudId: solicitud.id_solicitud,
+          decision: 'approved',
+          monto: Number(solicitud.monto || 0),
+          moneda: String(solicitud.moneda || 'MXN'),
+          concepto: solicitud.concepto || null,
+        })
+      }
       return NextResponse.json({
         exito: data.exito ?? true,
         id_solicitud: data.id_solicitud || solicitudId,
@@ -104,6 +124,25 @@ export async function POST(request: Request) {
         .input('comentario', comentario || null)
         .query('EXEC dbo.sp_rechazar_solicitud @id_admin, @id_solicitud, @comentario')
       const data = execResult.recordset?.[0] || {}
+      const solicitudDataResult = await db.request()
+        .input('id_solicitud', data.id_solicitud || solicitudId)
+        .query(`
+          SELECT TOP 1 id_solicitud, id_usuario, monto, moneda, concepto
+          FROM solicitudes
+          WHERE id_solicitud = @id_solicitud
+        `)
+      const solicitud = solicitudDataResult.recordset[0]
+      if (solicitud?.id_usuario) {
+        await safeQueueTransferExternalDecision(db, {
+          actorUserId: idAdmin,
+          targetUserId: solicitud.id_usuario,
+          solicitudId: solicitud.id_solicitud,
+          decision: 'rejected',
+          monto: Number(solicitud.monto || 0),
+          moneda: String(solicitud.moneda || 'MXN'),
+          concepto: solicitud.concepto || null,
+        })
+      }
       return NextResponse.json({
         exito: data.exito ?? true,
         id_solicitud: data.id_solicitud || solicitudId,

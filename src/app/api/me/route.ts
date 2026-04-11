@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db'
 import { authOptions } from '@/lib/auth-options'
 import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
 import { autoProvisionUser } from '@/lib/auto-provision'
+import { safeQueueLoginSuccessNotification } from '@/lib/notification-outbox'
 
 export async function GET() {
   const { error, upn, oid } = await requireAuth()
@@ -29,6 +30,14 @@ export async function GET() {
         `)
       user = { ...user, nombre_completo: sessionName }
     }
+
+    await safeQueueLoginSuccessNotification(db, {
+      userId: user.id_usuario,
+      actorUserId: user.id_usuario,
+      userName: user.nombre_completo || sessionName || null,
+      email: user.email || null,
+      upn: user.entra_id_upn || upn || null,
+    })
 
     return NextResponse.json(user)
   } catch (err: any) {

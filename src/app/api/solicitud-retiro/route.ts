@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
+import { syncOperationalBalancesFromLedger } from '@/lib/ledger-sync'
+import { safeQueueTransferExternalCreated, safeQueueTransferInternalExecuted } from '@/lib/notification-outbox'
 
 function makeTransferRequestId(maxLen: number) {
   const now = new Date()
@@ -96,6 +98,150 @@ export async function POST(request: Request) {
           return NextResponse.json({ detail: 'Cuenta destino interna no encontrada' }, { status: 404 })
         }
         cuentaBanco = null
+
+        const ledgerOriginResult = await db.request()
+          .input('nxg_origen', nxgOrigen)
+          .query(`
+            SELECT TOP 1 ledger_account_id
+            FROM ledger_accounts
+            WHERE source_table = N'cuentas_internas'
+              AND source_account_id = @nxg_origen
+          `)
+        const ledgerDestinoResult = await db.request()
+          .input('nxg_destino', destinoNxg)
+          .query(`
+            SELECT TOP 1 ledger_account_id
+            FROM ledger_accounts
+            WHERE source_table = N'cuentas_internas'
+              AND source_account_id = @nxg_destino
+          `)
+
+        const originLedger = ledgerOriginResult.recordset[0]?.ledger_account_id
+        const destinationLedger = ledgerDestinoResult.recordset[0]?.ledger_account_id
+        if (!originLedger || !destinationLedger) {
+          return NextResponse.json({ detail: 'No se encontraron cuentas contables para ejecutar transferencia interna' }, { status: 500 })
+        }
+
+        const engineResult = await db.request()
+          .input('origin_ledger_account', originLedger)
+          .input('destination_ledger_account', destinationLedger)
+          .input('amount_original', Number(monto))
+          .input('currency_original', moneda)
+          .input('transaction_timestamp', null)
+          .input('reference', referencia || `INT-${idSolicitud}`)
+          .input('fee_bps', 0)
+          .input('tax_bps', 0)
+          .input('spread_bps', 0)
+          .input('trade_date', null)
+          .input('settlement_date', null)
+          .input('original_tx_id', null)
+          .query(`
+            EXEC dbo.sp_process_transaction_v1
+              @origin_ledger_account,
+              @destination_ledger_account,
+              @amount_original,
+              @currency_original,
+              @transaction_timestamp,
+              @reference,
+              @fee_bps,
+              @tax_bps,
+              @spread_bps,
+              @trade_date,
+              @settlement_date,
+              @original_tx_id
+          `)
+
+        const txRaw = engineResult.recordset?.[0]
+        const txId = txRaw?.tx_id ? String(txRaw.tx_id) : null
+        const txStatus = String(txRaw?.status || '').toUpperCase()
+        if (!txId || txStatus === 'FAILED' || txStatus === 'REJECTED') {
+          return NextResponse.json({ detail: txRaw?.error_detail || 'No se pudo ejecutar la transferencia interna' }, { status: 500 })
+        }
+
+        await syncOperationalBalancesFromLedger(db)
+
+        const enrichedExtraPayload = {
+          ...(extraPayload || {}),
+          referencia: referencia || null,
+          auto_ejecutada: true,
+          tx_id: txId,
+          tx_status: txStatus,
+        }
+
+        await db.request()
+          .input('id_solicitud', idSolicitud)
+          .input('id_usuario', user.id_usuario)
+          .input('tipo', tipoSolicitud)
+          .input('nxg_origen', nxgOrigen)
+          .input('nxg_destino', destinoNxg)
+          .input('id_cuenta_banco', null)
+          .input('monto', monto)
+          .input('moneda', moneda)
+          .input('concepto', concepto || 'Transferencia interna')
+          .input('aprobado_por', user.id_usuario)
+          .input('datos_extra', JSON.stringify(enrichedExtraPayload))
+          .query(`
+            INSERT INTO solicitudes (
+              id_solicitud, id_usuario, tipo, nxg_origen, nxg_destino, id_cuenta_banco,
+              monto, moneda, concepto, estatus, aprobado_por, fecha_resolucion, datos_extra
+            ) VALUES (
+              @id_solicitud, @id_usuario, @tipo, @nxg_origen, @nxg_destino, @id_cuenta_banco,
+              @monto, @moneda, @concepto, N'ejecutada', @aprobado_por, SYSUTCDATETIME(), @datos_extra
+            )
+          `)
+
+        await db.request()
+          .input('id_transaccion', txId)
+          .input('id_cuenta_origen', nxgOrigen)
+          .input('id_cuenta_destino', destinoNxg)
+          .input('monto', monto)
+          .input('moneda', moneda)
+          .input('tipo_transaccion', 'transferencia_interna')
+          .input('concepto', concepto || 'Transferencia interna')
+          .input('estatus', 'ejecutada')
+          .input('referencia', referencia || idSolicitud)
+          .query(`
+            IF NOT EXISTS (SELECT 1 FROM transacciones WHERE id_transaccion = @id_transaccion)
+            BEGIN
+              INSERT INTO transacciones (
+                id_transaccion, id_cuenta_origen, id_cuenta_destino, fecha_hora, monto, moneda,
+                tipo_transaccion, concepto, estatus, referencia, created_at
+              ) VALUES (
+                @id_transaccion, @id_cuenta_origen, @id_cuenta_destino, SYSUTCDATETIME(), @monto, @moneda,
+                @tipo_transaccion, @concepto, @estatus, @referencia, SYSUTCDATETIME()
+              )
+            END
+          `)
+
+        await db.request()
+          .input('id_usuario', user.id_usuario)
+          .input('accion', 'TRANSFERENCIA_INTERNA_EJECUTADA')
+          .input('registro_id', idSolicitud)
+          .input('detalle', `Transferencia interna ejecutada · TX ${txId} · ${monto} ${moneda}`)
+          .query(`
+            INSERT INTO audit_log (id_usuario, accion, tabla_afectada, registro_id, detalle)
+            VALUES (@id_usuario, @accion, N'solicitudes', @registro_id, @detalle)
+          `)
+
+        await safeQueueTransferInternalExecuted(db, {
+          actorUserId: user.id_usuario,
+          solicitudId: idSolicitud,
+          txId,
+          monto: Number(monto),
+          moneda: String(moneda),
+          nxgOrigen: String(nxgOrigen),
+          nxgDestino: String(destinoNxg),
+          concepto: concepto || 'Transferencia interna',
+        })
+
+        return NextResponse.json({
+          exito: true,
+          id_solicitud: idSolicitud,
+          monto,
+          moneda,
+          estatus: 'ejecutada',
+          mensaje: 'Transferencia interna ejecutada correctamente.',
+        })
       } else {
         const bancoReq = db.request().input('userId', user.id_usuario)
         let bancoQuery = admin
@@ -173,13 +319,23 @@ export async function POST(request: Request) {
           VALUES (@id_usuario, @accion, N'solicitudes', @registro_id, @detalle)
         `)
 
+      await safeQueueTransferExternalCreated(db, {
+        actorUserId: user.id_usuario,
+        solicitudId: idSolicitud,
+        monto: Number(monto),
+        moneda: String(moneda),
+        nxgOrigen: String(nxgOrigen),
+        bancoDestino: cuentaBanco || null,
+        concepto: concepto || 'Transferencia externa',
+      })
+
       return NextResponse.json({
         exito: true,
         id_solicitud: idSolicitud,
         monto,
         moneda,
         estatus: 'pendiente',
-        mensaje: 'Solicitud enviada',
+        mensaje: 'Transferencia externa enviada para aprobación.',
       })
     }
 
@@ -208,6 +364,18 @@ export async function POST(request: Request) {
 
     const result = execResult.recordset?.[0] || {}
     const idSolicitud = result.id_solicitud || null
+
+    if (idSolicitud) {
+      await safeQueueTransferExternalCreated(db, {
+        actorUserId: user.id_usuario,
+        solicitudId: String(idSolicitud),
+        monto: Number(monto),
+        moneda: String(moneda),
+        nxgOrigen: String(nxgOrigen),
+        bancoDestino: String(idCuentaBanco),
+        concepto: concepto || 'Transferencia externa',
+      })
+    }
 
     return NextResponse.json({
       exito: result.exito ?? true,
