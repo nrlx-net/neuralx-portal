@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 
 function makeTransferRequestId(maxLen: number) {
   const now = new Date()
@@ -44,9 +44,12 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
+    const admin = isAdminUpn(upn)
 
     const nxgReq = db.request().input('userId', user.id_usuario)
-    let nxgQuery = 'SELECT TOP 1 nxg_id FROM cuentas_internas WHERE id_usuario = @userId'
+    let nxgQuery = admin
+      ? 'SELECT TOP 1 nxg_id FROM cuentas_internas WHERE 1=1'
+      : 'SELECT TOP 1 nxg_id FROM cuentas_internas WHERE id_usuario = @userId'
     if (nxg_origen) {
       nxgQuery += ' AND nxg_id = @nxg_origen'
       nxgReq.input('nxg_origen', nxg_origen)
@@ -95,7 +98,9 @@ export async function POST(request: Request) {
         cuentaBanco = null
       } else {
         const bancoReq = db.request().input('userId', user.id_usuario)
-        let bancoQuery = 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
+        let bancoQuery = admin
+          ? 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE 1=1'
+          : 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
         if (id_cuenta_banco) {
           bancoQuery += ' AND id_cuenta = @id_cuenta_banco'
           bancoReq.input('id_cuenta_banco', id_cuenta_banco)
@@ -179,7 +184,9 @@ export async function POST(request: Request) {
     }
 
     const bancoReq = db.request().input('userId', user.id_usuario)
-    let bancoQuery = 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
+    let bancoQuery = admin
+      ? 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE 1=1'
+      : 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
     if (id_cuenta_banco) {
       bancoQuery += ' AND id_cuenta = @id_cuenta_banco'
       bancoReq.input('id_cuenta_banco', id_cuenta_banco)

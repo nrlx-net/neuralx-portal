@@ -21,7 +21,7 @@ export default function TransferirPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Link
-              href="/solicitudes"
+              href="/solicitudes?modo=interna"
               className="rounded-xl border border-nrlx-border bg-nrlx-surface p-4 hover:border-nrlx-accent/40 transition-colors"
             >
               <Landmark size={16} className="text-nrlx-accent mb-2" />
@@ -29,7 +29,7 @@ export default function TransferirPage() {
               <p className="text-xs text-nrlx-muted mt-1">Entre cuentas de socios dentro del sistema NXG.</p>
             </Link>
             <Link
-              href="/solicitudes"
+              href="/solicitudes?modo=externa"
               className="rounded-xl border border-nrlx-border bg-nrlx-surface p-4 hover:border-nrlx-accent/40 transition-colors"
             >
               <Building2 size={16} className="text-nrlx-accent mb-2" />

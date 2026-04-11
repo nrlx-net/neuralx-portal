@@ -52,6 +52,19 @@ export default function SolicitudesPage() {
   }, [status])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const modo = (new URLSearchParams(window.location.search).get('modo') || '').toLowerCase()
+    if (modo !== 'interna' && modo !== 'externa') return
+    setTransferMode(modo as TransferMode)
+    setSearchDestino('')
+    setCuentaDestino(
+      modo === 'interna'
+        ? (cuentasInternas.find((c) => c.id_cuenta !== cuentaOrigen)?.id_cuenta || '')
+        : (cuentasBancarias[0]?.id_cuenta || '')
+    )
+  }, [cuentasInternas, cuentasBancarias, cuentaOrigen])
+
+  useEffect(() => {
     if (status === 'authenticated') {
       void loadSolicitudes(tab)
     }
