@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
+import { autoProvisionUser } from '@/lib/auto-provision'
 import { calcularBalanceConsolidado } from '@/lib/balance'
 
 export async function GET() {
-  const { error, upn } = await requireAuth()
+  const { error, upn, oid } = await requireAuth()
   if (error) return error
 
   try {
     const db = await getDb()
-    const user = await getUserByUpnOrEmail(db, upn!)
+    let user = await getUserByUpnOrEmail(db, upn!, oid)
     if (!user) {
-      return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
+      user = await autoProvisionUser(db, upn!)
     }
     const admin = isAdminUpn(upn)
     const cuentasResult = admin

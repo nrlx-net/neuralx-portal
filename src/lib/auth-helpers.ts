@@ -18,31 +18,37 @@ export async function getAuthenticatedUpn(): Promise<string | null> {
 }
 
 export async function requireAuth() {
-  const upn = await getAuthenticatedUpn()
+  const session = await getServerSession(authOptions)
+  const upn = (session?.user?.upn || session?.user?.email || null) as string | null
+  const oid = (session?.user?.oid || null) as string | null
   if (!upn) {
-    return { error: NextResponse.json({ detail: 'No autenticado' }, { status: 401 }), upn: null }
+    return { error: NextResponse.json({ detail: 'No autenticado' }, { status: 401 }), upn: null, oid: null }
   }
-  return { error: null, upn }
+  return { error: null, upn, oid }
 }
 
 export async function requireAdmin() {
-  const { error, upn } = await requireAuth()
-  if (error) return { error, upn: null }
+  const { error, upn, oid } = await requireAuth()
+  if (error) return { error, upn: null, oid: null }
   if (!isAdminUpn(upn)) {
-    return { error: NextResponse.json({ detail: 'Solo administradores' }, { status: 403 }), upn: null }
+    return { error: NextResponse.json({ detail: 'Solo administradores' }, { status: 403 }), upn: null, oid: null }
   }
-  return { error: null, upn }
+  return { error: null, upn, oid }
 }
 
-export async function getUserByUpnOrEmail(db: ConnectionPool, upnOrEmail: string) {
+export async function getUserByUpnOrEmail(db: ConnectionPool, upnOrEmail: string, oid?: string | null) {
   const normalized = upnOrEmail.trim().toLowerCase()
-  const result = await db.request()
+  const normalizedOid = (oid || '').trim().toLowerCase()
+  const request = db.request()
     .input('login', normalized)
-    .query(`
+    .input('oid', normalizedOid)
+
+  const result = await request.query(`
       SELECT TOP 1 id_usuario, nombre_completo, puesto, departamento, email, entra_id_upn, estatus, fecha_conexion, created_at
       FROM usuarios_socios
       WHERE LOWER(LTRIM(RTRIM(entra_id_upn))) = @login
          OR LOWER(LTRIM(RTRIM(email))) = @login
+         OR (@oid <> '' AND LOWER(LTRIM(RTRIM(entra_object_id))) = @oid)
     `)
 
   return result.recordset[0] || null

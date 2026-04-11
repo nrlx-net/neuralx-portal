@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, requireAdmin } from '@/lib/auth-helpers'
+import { syncOperationalBalancesFromLedger } from '@/lib/ledger-sync'
 
 export async function GET(request: Request) {
   const { error } = await requireAdmin()
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
         .input('comentario', comentario || null)
         .query('EXEC dbo.sp_aprobar_solicitud @id_admin, @id_solicitud, @comentario')
       const data = execResult.recordset?.[0] || {}
+      await syncOperationalBalancesFromLedger(db)
       return NextResponse.json({
         exito: data.exito ?? true,
         id_solicitud: data.id_solicitud || solicitudId,

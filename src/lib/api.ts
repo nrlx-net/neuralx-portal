@@ -136,6 +136,16 @@ export interface ProcesoRegulatorio {
   [key: string]: any
 }
 
+export interface Notificacion {
+  id_notificacion: number
+  titulo: string
+  mensaje: string
+  tipo: string
+  leida: boolean
+  link?: string | null
+  created_at: string
+}
+
 export interface EngineTxPayload {
   origin_ledger_account: string
   destination_ledger_account?: string | null
@@ -314,6 +324,15 @@ export const api = {
     apiFetch<{ procesos: ProcesoRegulatorio[]; total: number }>(
       `/api/regulatorios${estatus ? `?estatus=${encodeURIComponent(estatus)}` : ''}`
     ),
+
+  getNotificaciones: () =>
+    apiFetch<{ notificaciones: Notificacion[]; no_leidas: number }>('/api/notificaciones'),
+
+  marcarNotificacionLeida: (id_notificacion: number) =>
+    apiFetch<{ exito: boolean }>('/api/notificaciones', {
+      method: 'PATCH',
+      body: JSON.stringify({ id_notificacion }),
+    }),
 
   // Admin
   adminResumen: () =>

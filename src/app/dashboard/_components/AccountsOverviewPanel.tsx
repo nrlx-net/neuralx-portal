@@ -18,7 +18,7 @@ export function AccountsOverviewPanel({ cuentas }: AccountsOverviewPanelProps) {
         </Link>
       </div>
       <div className="space-y-2">
-        {cuentas.slice(0, 4).map((c) => (
+        {cuentas.map((c) => (
           <article key={c.id_cuenta} className="rounded-xl border border-nrlx-border bg-nrlx-el p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">

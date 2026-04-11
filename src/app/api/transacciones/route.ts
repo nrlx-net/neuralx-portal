@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
+import { autoProvisionUser } from '@/lib/auto-provision'
 
 export async function GET(request: Request) {
-  const { error, upn } = await requireAuth()
+  const { error, upn, oid } = await requireAuth()
   if (error) return error
 
   const { searchParams } = new URL(request.url)
@@ -11,9 +12,9 @@ export async function GET(request: Request) {
 
   try {
     const db = await getDb()
-    const user = await getUserByUpnOrEmail(db, upn!)
+    let user = await getUserByUpnOrEmail(db, upn!, oid)
     if (!user) {
-      return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
+      user = await autoProvisionUser(db, upn!)
     }
     const admin = isAdminUpn(upn)
     const cuentasResult = admin

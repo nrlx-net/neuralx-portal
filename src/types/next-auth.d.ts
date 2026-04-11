@@ -8,6 +8,7 @@ declare module 'next-auth' {
       email?: string | null
       image?: string | null
       upn?: string
+      oid?: string
     }
   }
 }
@@ -17,5 +18,6 @@ declare module 'next-auth/jwt' {
     accessToken?: string
     idToken?: string
     upn?: string
+    oid?: string
   }
 }

@@ -24,12 +24,14 @@ export const authOptions: NextAuthOptions = {
         token.upn = (profile as any).preferred_username
         token.name = profile.name
         token.email = profile.email
+        token.oid = (profile as any).oid
       }
       return token
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken as string
       session.user.upn = token.upn as string
+      session.user.oid = token.oid as string
       return session
     },
   },

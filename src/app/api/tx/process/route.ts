@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { EngineLedgerEntry, mapEngineResponse } from '@/lib/tx-engine'
+import { syncOperationalBalancesFromLedger } from '@/lib/ledger-sync'
 
 export async function POST(request: Request) {
   const { error } = await requireAdmin()
@@ -85,6 +86,8 @@ export async function POST(request: Request) {
       account: r.ledger_account_id,
       amount: Number(r.amount_base || 0),
     }))
+
+    await syncOperationalBalancesFromLedger(db)
 
     const payload = mapEngineResponse(raw, entries)
     return NextResponse.json(payload)
