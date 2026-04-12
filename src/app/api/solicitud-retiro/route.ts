@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 import { syncOperationalBalancesFromLedger } from '@/lib/ledger-sync'
+import { pickLedgerForNxg } from '@/lib/ledger-pick'
 import { safeQueueTransferExternalCreated, safeQueueTransferInternalExecuted } from '@/lib/notification-outbox'
 
 function makeTransferRequestId(maxLen: number) {
@@ -47,6 +48,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ detail: 'Usuario no encontrado' }, { status: 404 })
     }
     const admin = isAdminUpn(upn)
+
+    if (flow === 'transfer' && admin && !nxg_origen) {
+      return NextResponse.json(
+        { detail: 'Como administrador debe indicar explícitamente la cuenta NXG de origen (nxg_origen).' },
+        { status: 400 }
+      )
+    }
 
     const nxgReq = db.request().input('userId', user.id_usuario)
     let nxgQuery = admin
@@ -99,27 +107,24 @@ export async function POST(request: Request) {
         }
         cuentaBanco = null
 
-        const ledgerOriginResult = await db.request()
-          .input('nxg_origen', nxgOrigen)
-          .query(`
-            SELECT TOP 1 ledger_account_id
-            FROM ledger_accounts
-            WHERE source_table = N'cuentas_internas'
-              AND source_account_id = @nxg_origen
-          `)
-        const ledgerDestinoResult = await db.request()
-          .input('nxg_destino', destinoNxg)
-          .query(`
-            SELECT TOP 1 ledger_account_id
-            FROM ledger_accounts
-            WHERE source_table = N'cuentas_internas'
-              AND source_account_id = @nxg_destino
-          `)
+        await syncOperationalBalancesFromLedger(db)
 
-        const originLedger = ledgerOriginResult.recordset[0]?.ledger_account_id
-        const destinationLedger = ledgerDestinoResult.recordset[0]?.ledger_account_id
+        const originPick = await pickLedgerForNxg(db, nxgOrigen)
+        const destPick = await pickLedgerForNxg(db, destinoNxg)
+        const originLedger = originPick?.ledger_account_id
+        const destinationLedger = destPick?.ledger_account_id
         if (!originLedger || !destinationLedger) {
           return NextResponse.json({ detail: 'No se encontraron cuentas contables para ejecutar transferencia interna' }, { status: 500 })
+        }
+
+        const monedaNorm = String(moneda || '').trim().toUpperCase()
+        if (originPick.currency && originPick.currency.trim().toUpperCase() !== monedaNorm) {
+          return NextResponse.json(
+            {
+              detail: `La moneda del libro de origen (${originPick.currency}) no coincide con la moneda de la operación (${moneda}).`,
+            },
+            { status: 400 }
+          )
         }
 
         const engineResult = await db.request()
@@ -155,7 +160,12 @@ export async function POST(request: Request) {
         const txId = txRaw?.tx_id ? String(txRaw.tx_id) : null
         const txStatus = String(txRaw?.status || '').toUpperCase()
         if (!txId || txStatus === 'FAILED' || txStatus === 'REJECTED') {
-          return NextResponse.json({ detail: txRaw?.error_detail || 'No se pudo ejecutar la transferencia interna' }, { status: 500 })
+          const base = txRaw?.error_detail || 'No se pudo ejecutar la transferencia interna'
+          const hint =
+            admin && originPick
+              ? ` · Diagnóstico: ledger origen ${nxgOrigen} id=${originLedger} disponible=${originPick.available_balance} ${originPick.currency || moneda}.`
+              : ''
+          return NextResponse.json({ detail: `${base}${hint}` }, { status: 500 })
         }
 
         await syncOperationalBalancesFromLedger(db)
