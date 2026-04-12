@@ -36,6 +36,8 @@ export interface UsuarioSocio {
   created_at?: string
   /** Presente en respuesta de GET /api/me */
   es_admin?: boolean
+  /** URL de foto de perfil (portal unificado para todos los socios) */
+  foto_perfil?: string
 }
 
 export interface CuentaBancaria {

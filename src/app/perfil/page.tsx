@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { signOut } from 'next-auth/react'
 import { api, ProcesoRegulatorio, UsuarioSocio } from '@/lib/api'
+import { PORTAL_DEFAULT_AVATAR_URL } from '@/lib/portal-avatar'
 import { Sidebar } from '../components/Sidebar'
 import { formatearMoneda } from '@/lib/balance'
 import {
@@ -24,16 +25,6 @@ import {
 function formatDate(value?: string | null) {
   if (!value) return 'N/A'
   return new Date(value).toLocaleDateString('es-MX')
-}
-
-function initialsFrom(name?: string | null, email?: string | null) {
-  const source = name || email || 'NN'
-  return source
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((v) => v[0]?.toUpperCase() || '')
-    .join('')
 }
 
 export default function PerfilPage() {
@@ -109,9 +100,11 @@ export default function PerfilPage() {
       <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 pb-20 lg:pb-0">
         <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto animate-fade-up space-y-4">
           <section className="rounded-2xl border border-nrlx-border bg-nrlx-surface p-5 text-center">
-            <div className="w-20 h-20 mx-auto rounded-full bg-nrlx-accent/20 border border-nrlx-accent/30 flex items-center justify-center text-xl font-mono text-nrlx-text">
-              {initialsFrom(user?.nombre_completo, user?.email)}
-            </div>
+            <img
+              src={user?.foto_perfil || PORTAL_DEFAULT_AVATAR_URL}
+              alt=""
+              className="w-20 h-20 mx-auto rounded-full border border-nrlx-accent/30 object-cover bg-nrlx-el2"
+            />
             <div className="mt-2 inline-flex items-center rounded-full border border-nrlx-border bg-nrlx-el px-3 py-1 text-[11px] text-nrlx-muted">
               {user?.puesto || 'Socio'}
             </div>

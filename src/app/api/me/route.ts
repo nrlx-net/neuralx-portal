@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth-options'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 import { autoProvisionUser } from '@/lib/auto-provision'
 import { safeQueueLoginSuccessNotification } from '@/lib/notification-outbox'
+import { PORTAL_DEFAULT_AVATAR_URL } from '@/lib/portal-avatar'
 
 export async function GET() {
   const { error, upn, oid } = await requireAuth()
@@ -42,6 +43,7 @@ export async function GET() {
     return NextResponse.json({
       ...user,
       es_admin: isAdminUpn(upn),
+      foto_perfil: PORTAL_DEFAULT_AVATAR_URL,
     })
   } catch (err: any) {
     console.error('Error /api/me:', err)

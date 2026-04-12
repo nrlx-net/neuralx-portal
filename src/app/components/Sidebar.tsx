@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { TransferFlow } from './TransferFlow'
+import { PORTAL_DEFAULT_AVATAR_URL } from '@/lib/portal-avatar'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -32,17 +33,6 @@ export function Sidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { data: session } = useSession()
   const pathname = usePathname()
-
-  const initials = useMemo(
-    () =>
-      (session?.user?.name || 'NN')
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((p) => p[0]?.toUpperCase() || '')
-        .join(''),
-    [session?.user?.name]
-  )
 
   return (
     <>
@@ -88,9 +78,11 @@ export function Sidebar() {
 
           <div className="border border-nrlx-border bg-nrlx-el rounded-xl p-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-nrlx-el2 border border-nrlx-border flex items-center justify-center text-xs font-mono text-nrlx-text">
-                {initials || 'NN'}
-              </div>
+              <img
+                src={PORTAL_DEFAULT_AVATAR_URL}
+                alt=""
+                className="w-10 h-10 rounded-full border border-nrlx-border object-cover shrink-0 bg-nrlx-el2"
+              />
               <div className="min-w-0">
                 <p className="text-xs text-nrlx-text truncate">{session?.user?.name || 'Usuario'}</p>
                 <p className="text-[10px] font-mono text-nrlx-muted truncate mt-0.5">
@@ -201,8 +193,17 @@ export function Sidebar() {
               })}
             </nav>
             <div className="rounded-xl border border-nrlx-border bg-nrlx-el p-3">
-              <p className="text-xs text-nrlx-text truncate">{session?.user?.name || 'Usuario'}</p>
-              <p className="text-[10px] text-nrlx-muted truncate mt-1">{session?.user?.upn || session?.user?.email}</p>
+              <div className="flex items-center gap-3 mb-2">
+                <img
+                  src={PORTAL_DEFAULT_AVATAR_URL}
+                  alt=""
+                  className="w-10 h-10 rounded-full border border-nrlx-border object-cover shrink-0 bg-nrlx-el2"
+                />
+                <div className="min-w-0">
+                  <p className="text-xs text-nrlx-text truncate">{session?.user?.name || 'Usuario'}</p>
+                  <p className="text-[10px] text-nrlx-muted truncate">{session?.user?.upn || session?.user?.email}</p>
+                </div>
+              </div>
               <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
                 className="mt-3 w-full h-9 rounded-lg border border-nrlx-border bg-nrlx-el2 text-xs text-nrlx-muted"
