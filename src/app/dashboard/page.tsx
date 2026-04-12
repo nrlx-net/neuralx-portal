@@ -10,6 +10,7 @@ import { BalanceOverviewCard } from './_components/BalanceOverviewCard'
 import { ActionCenter } from './_components/ActionCenter'
 import { AccountsOverviewPanel } from './_components/AccountsOverviewPanel'
 import { RecentActivityPanel } from './_components/RecentActivityPanel'
+import { WireTransfersPanel } from './_components/WireTransfersPanel'
 import { CredentialOperationsPanel } from './_components/CredentialOperationsPanel'
 import { TransferFlow } from '../components/TransferFlow'
 import { BankDataSheet } from '../components/BankDataSheet'
@@ -122,6 +123,7 @@ export default function DashboardPage() {
             onRefresh={() => void loadData()}
           />
           <RecentActivityPanel transacciones={transacciones} myNxgIds={myNxgIds} />
+          <WireTransfersPanel esAdmin={esAdmin} />
         </div>
 
         <div className="space-y-4">

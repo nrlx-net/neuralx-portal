@@ -78,6 +78,39 @@ export interface TransaccionesResponse {
   total: number
 }
 
+export interface WireTransferOperacion {
+  id: string
+  fecha_operacion: string
+  beneficiario: string
+  numero_cuenta: string
+  swift_bic: string
+  monto_usd: number
+  fee_usd: number
+  total_liberar_usd: number
+  partner_user_id: string
+  status: string
+  bank_icon?: string | null
+  socio_nombre: string
+  bank_id?: string | null
+  bank_name?: string | null
+  icon_url?: string | null
+}
+
+export interface WireOperacionesResumen {
+  total_transacciones: number
+  suma_montos_usd: number
+  suma_fees_usd: number
+  gran_total_liberar_usd: number
+  cnt_pending: number
+  cnt_completed: number
+  cnt_rejected: number
+}
+
+export interface WireOperacionesResponse {
+  transferencias: WireTransferOperacion[]
+  resumen: WireOperacionesResumen | null
+}
+
 export interface Solicitud {
   id_solicitud: string
   tipo: string
@@ -347,6 +380,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ id_notificacion }),
     }),
+
+  getOperacionesWire: () => apiFetch<WireOperacionesResponse>('/api/operaciones-wire'),
 
   // Admin
   adminResumen: () =>
