@@ -21,7 +21,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/cuentas', label: 'Cuentas', icon: Landmark },
   { href: '/transferir', label: 'Transferir', icon: ArrowLeftRight },
-  { href: '/solicitudes', label: 'Solicitudes', icon: FileText },
+  { href: '/transferir', label: 'Transferencias', icon: FileText },
   { href: '/regulatorio', label: 'Regulatorio', icon: Gavel },
   { href: '/dashboard/credenciales-operaciones', label: 'Credenciales VC', icon: ShieldCheck },
   { href: '/perfil', label: 'Perfil', icon: User },
@@ -146,15 +146,15 @@ export function Sidebar() {
             Transferir
           </button>
           <Link
-            href="/solicitudes"
+            href="/transferir"
             className={`mt-2 h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-medium transition-colors ${
-              pathname.startsWith('/solicitudes')
+              pathname.startsWith('/transferir') || pathname.startsWith('/solicitudes')
                 ? 'text-nrlx-accent bg-nrlx-accent/10'
                 : 'text-nrlx-muted'
             }`}
           >
             <FileText size={17} />
-            Solicitudes
+            Transferencias
           </Link>
           <button
             onClick={() => setMobileMenuOpen(true)}

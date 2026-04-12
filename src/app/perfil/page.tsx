@@ -145,7 +145,7 @@ export default function PerfilPage() {
               { icon: Wallet, label: 'Mis cuentas', href: '/cuentas' },
               { icon: FileText, label: 'Documentos', hint: 'Próximamente' },
               { icon: ReceiptText, label: 'Movimientos', href: '/movimientos' },
-              { icon: BadgeCheck, label: 'Solicitudes', href: '/solicitudes' },
+              { icon: BadgeCheck, label: 'Transferencias', href: '/transferir' },
               { icon: Gavel, label: 'Regulatorio', href: '/regulatorio' },
             ]}
           />

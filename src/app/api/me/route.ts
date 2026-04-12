@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { getDb } from '@/lib/db'
 import { authOptions } from '@/lib/auth-options'
-import { getUserByUpnOrEmail, requireAuth } from '@/lib/auth-helpers'
+import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 import { autoProvisionUser } from '@/lib/auto-provision'
 import { safeQueueLoginSuccessNotification } from '@/lib/notification-outbox'
 
@@ -39,7 +39,10 @@ export async function GET() {
       upn: user.entra_id_upn || upn || null,
     })
 
-    return NextResponse.json(user)
+    return NextResponse.json({
+      ...user,
+      es_admin: isAdminUpn(upn),
+    })
   } catch (err: any) {
     console.error('Error /api/me:', err)
     return NextResponse.json({ detail: err.message }, { status: 500 })

@@ -34,6 +34,8 @@ export interface UsuarioSocio {
   estatus: string
   fecha_conexion: string
   created_at?: string
+  /** Presente en respuesta de GET /api/me */
+  es_admin?: boolean
 }
 
 export interface CuentaBancaria {
@@ -354,25 +356,30 @@ export const api = {
   adminGetCuentas: (_token?: string) =>
     apiFetch('/api/admin?view=cuentas'),
 
+  /** Lista en crudo desde v_solicitudes_pendientes (solo admin). */
   adminGetSolicitudes: (_token?: string) =>
-    apiFetch('/api/admin?view=solicitudes'),
+    apiFetch<Record<string, unknown>[]>('/api/admin?view=solicitudes'),
 
   adminGetCustodia: () =>
     apiFetch('/api/admin?view=custodia'),
 
-  adminAprobar: (arg1: string, arg2?: string) => {
-    const id = arg2 ?? arg1
-    return apiFetch('/api/admin', {
+  adminAprobar: (id_solicitud: string, comentario?: string) =>
+    apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ action: 'aprobar', id_solicitud: id }),
-    })
-  },
+      body: JSON.stringify({
+        action: 'aprobar',
+        id_solicitud,
+        ...(comentario?.trim() ? { comentario: comentario.trim() } : {}),
+      }),
+    }),
 
-  adminRechazar: (arg1: string, arg2?: string) => {
-    const id = arg2 ?? arg1
-    return apiFetch('/api/admin', {
+  adminRechazar: (id_solicitud: string, comentario?: string) =>
+    apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ action: 'rechazar', id_solicitud: id }),
-    })
-  },
+      body: JSON.stringify({
+        action: 'rechazar',
+        id_solicitud,
+        comentario: comentario?.trim() || null,
+      }),
+    }),
 }

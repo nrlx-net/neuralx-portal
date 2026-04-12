@@ -8,6 +8,7 @@ export function useDashboardData(ready: boolean) {
   const [cuentas, setCuentas] = useState<CuentaBancaria[]>([])
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
+  const [esAdmin, setEsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -15,14 +16,16 @@ export function useDashboardData(ready: boolean) {
     try {
       setLoading(true)
       setError(null)
-      const [cuentasRes, txnRes, solRes] = await Promise.all([
+      const [cuentasRes, txnRes, solRes, meRes] = await Promise.all([
         api.getCuentas(),
         api.getTransacciones(),
         api.getSolicitudes('pendiente'),
+        api.getMe(),
       ])
       setCuentas(cuentasRes.cuentas)
       setTransacciones(txnRes.transacciones)
       setSolicitudes(solRes.solicitudes)
+      setEsAdmin(Boolean(meRes.es_admin))
     } catch (err: any) {
       setError(err.message || 'No se pudieron cargar datos del dashboard')
     } finally {
@@ -50,6 +53,7 @@ export function useDashboardData(ready: boolean) {
     cuentas,
     transacciones,
     solicitudes,
+    esAdmin,
     loading,
     error,
     balance,

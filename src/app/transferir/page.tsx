@@ -26,7 +26,9 @@ export default function TransferirPage() {
             >
               <Landmark size={16} className="text-nrlx-accent mb-2" />
               <p className="text-sm text-nrlx-text">Transferencia interna</p>
-              <p className="text-xs text-nrlx-muted mt-1">Entre cuentas de socios dentro del sistema NXG.</p>
+              <p className="text-xs text-nrlx-muted mt-1">
+                Entre cuentas NXG de socios; liquidación inmediata sin paso de aprobación.
+              </p>
             </Link>
             <Link
               href="/solicitudes?modo=externa"
@@ -34,7 +36,9 @@ export default function TransferirPage() {
             >
               <Building2 size={16} className="text-nrlx-accent mb-2" />
               <p className="text-sm text-nrlx-text">Transferencia externa</p>
-              <p className="text-xs text-nrlx-muted mt-1">A cuentas bancarias vinculadas con validación operativa.</p>
+              <p className="text-xs text-nrlx-muted mt-1">
+                A bancos o beneficiarios internacionales; requiere aprobación antes de ejecutarse.
+              </p>
             </Link>
             <Link
               href="/solicitudes"

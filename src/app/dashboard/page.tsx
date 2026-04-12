@@ -34,7 +34,9 @@ export default function DashboardPage() {
   const [loadingNotificaciones, setLoadingNotificaciones] = useState(false)
   const ready = status === 'authenticated'
 
-  const { cuentas, transacciones, solicitudes, balance, loading, error, loadData } = useDashboardData(ready)
+  const { cuentas, transacciones, solicitudes, esAdmin, balance, loading, error, loadData } =
+    useDashboardData(ready)
+  const myNxgIds = useMemo(() => cuentas.map((c) => c.id_cuenta), [cuentas])
   const roleLabel = useMemo(
     () => roleLabelFromUpn(session?.user?.upn || session?.user?.email || null),
     [session?.user?.email, session?.user?.upn]
@@ -119,7 +121,7 @@ export default function DashboardPage() {
             onInvite={() => setInviteOpen(true)}
             onRefresh={() => void loadData()}
           />
-          <RecentActivityPanel transacciones={transacciones} />
+          <RecentActivityPanel transacciones={transacciones} myNxgIds={myNxgIds} />
         </div>
 
         <div className="space-y-4">
@@ -166,15 +168,28 @@ export default function DashboardPage() {
             </div>
           </section>
           <section className="rounded-2xl border border-nrlx-border bg-nrlx-surface p-4">
-            <p className="text-[11px] font-mono text-nrlx-muted mb-2">SOLICITUDES EN CURSO</p>
+            <p className="text-[11px] font-mono text-nrlx-muted mb-2">
+              {esAdmin ? 'OPERACIONES PENDIENTES (GLOBAL)' : 'TUS OPERACIONES PENDIENTES'}
+            </p>
             <p className="text-2xl font-mono text-nrlx-text">{solicitudes.length}</p>
-            <p className="text-xs text-nrlx-muted mb-3">Pendientes de revisión o ejecución</p>
+            <p className="text-xs text-nrlx-muted mb-3">
+              Transferencias externas o internacionales en espera de aprobación. Las internas NXG se ejecutan al
+              instante.
+            </p>
             <Link
-              href="/solicitudes"
-              className="h-10 rounded-xl border border-nrlx-border bg-nrlx-el text-sm text-nrlx-muted hover:text-nrlx-text inline-flex items-center justify-center w-full"
+              href="/transferir"
+              className="h-10 rounded-xl border border-nrlx-border bg-nrlx-el text-sm text-nrlx-muted hover:text-nrlx-text inline-flex items-center justify-center w-full mb-2"
             >
-              Ir a solicitudes
+              Ir a transferencias
             </Link>
+            {esAdmin && (
+              <Link
+                href="/admin/aprobaciones"
+                className="h-10 rounded-xl border border-nrlx-accent/40 bg-nrlx-accent/10 text-sm text-nrlx-accent hover:bg-nrlx-accent/15 inline-flex items-center justify-center w-full"
+              >
+                Panel de aprobaciones
+              </Link>
+            )}
           </section>
           <AccountsOverviewPanel cuentas={cuentas} />
         </div>

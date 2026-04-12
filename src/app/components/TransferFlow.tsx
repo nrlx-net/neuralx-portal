@@ -208,7 +208,7 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
       open={open}
       onClose={resetAndClose}
       title="Transferencia operativa"
-      description="Flujo de ejecución institucional con revisión previa"
+      description="Internas NXG al instante; externas o internacionales con revisión administrativa."
       footer={
         <div className="flex items-center gap-2 text-[11px] text-nrlx-muted">
           <span className="inline-flex items-center gap-1 rounded-full border border-nrlx-border bg-nrlx-el px-2 py-1">
@@ -431,8 +431,8 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
             </p>
             <p className="text-xs text-nrlx-muted mt-1">
               {selected?.method === 'interna'
-                ? 'Transferencia interna entre cuentas NXG.'
-                : 'Transferencia externa sujeta a aprobación y ejecución.'}
+                ? 'Se ejecuta de inmediato entre cuentas NXG; verás el movimiento en el historial.'
+                : 'Transferencia externa o internacional: queda en pendiente hasta aprobación y ejecución.'}
             </p>
             <p className="text-xs text-nrlx-muted mt-1">
               Si la moneda final requiere conversión, el tipo de cambio se aplica al ejecutar en motor transaccional.
@@ -455,7 +455,14 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
           {success ? (
             <div className="text-center py-6">
               <CheckCircle2 size={34} className="mx-auto text-nrlx-success mb-2" />
-              <p className="text-sm text-nrlx-text">Solicitud enviada</p>
+              <p className="text-sm text-nrlx-text">
+                {selected?.method === 'interna' ? 'Transferencia interna ejecutada' : 'Operación registrada'}
+              </p>
+              <p className="text-xs text-nrlx-muted mt-2 px-2">
+                {selected?.method === 'interna'
+                  ? 'Saldos actualizados. Revisa Movimientos en el menú.'
+                  : 'Pendiente de aprobación del administrador.'}
+              </p>
             </div>
           ) : (
             <>
@@ -469,9 +476,11 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
                 <p className="text-nrlx-muted mt-2">Concepto</p>
                 <p className="text-nrlx-text">{concepto || 'Sin referencia'}</p>
               </div>
-              <div className="rounded-xl border border-nrlx-warning/30 bg-nrlx-warning/10 px-3 py-2 text-xs text-nrlx-warning">
-                Requiere aprobación del administrador
-              </div>
+              {selected?.method !== 'interna' && (
+                <div className="rounded-xl border border-nrlx-warning/30 bg-nrlx-warning/10 px-3 py-2 text-xs text-nrlx-warning">
+                  Requiere aprobación del administrador antes de ejecutarse
+                </div>
+              )}
               <button
                 onClick={confirmTransfer}
                 disabled={sending}

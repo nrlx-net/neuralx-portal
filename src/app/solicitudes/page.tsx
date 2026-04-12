@@ -16,6 +16,14 @@ const BANK_ICON_FALLBACKS: Record<string, string> = {
   banregio: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Banregio-icon.png',
 }
 
+function etiquetaTipoSolicitud(tipo: string) {
+  const t = (tipo || '').toLowerCase()
+  if (t === 'transferencia_interna') return 'Transferencia interna NXG'
+  if (t === 'transferencia_externa') return 'Transferencia externa / internacional'
+  if (t.includes('retiro')) return 'Salida a cuenta bancaria'
+  return tipo || 'Operación'
+}
+
 function getBankIconUrl(cuenta: CuentaBancariaVinculada) {
   if (cuenta.icono_banco_url) return cuenta.icono_banco_url
   const bank = (cuenta.banco || '').toLowerCase()
@@ -204,7 +212,8 @@ export default function SolicitudesPage() {
               <div>
                 <h1 className="text-2xl font-medium text-nrlx-text">Transferencias operativas</h1>
                 <p className="text-xs text-nrlx-muted mt-1">
-                  Operaciones internas y externas sujetas a aprobación administrativa
+                  Internas NXG se ejecutan al instante. Externas o internacionales quedan pendientes hasta aprobación
+                  del administrador.
                 </p>
               </div>
               <button
@@ -481,8 +490,8 @@ export default function SolicitudesPage() {
                 <div className="bg-nrlx-card/50 border border-nrlx-border/50 rounded-lg p-3">
                   <p className="text-[10px] font-mono text-nrlx-warning">
                     {transferMode === 'interna'
-                      ? 'Las transferencias internas también quedan registradas y pasan por flujo de aprobación.'
-                      : 'Las transferencias externas requieren aprobación del administrador antes de procesarse.'}
+                      ? 'Las transferencias internas entre cuentas NXG se ejecutan de inmediato y aparecen en Movimientos.'
+                      : 'Las transferencias a bancos externos o beneficiarios internacionales requieren aprobación antes de ejecutarse.'}
                   </p>
                 </div>
 
@@ -500,8 +509,8 @@ export default function SolicitudesPage() {
                   {submitting
                     ? 'Enviando...'
                     : transferMode === 'interna'
-                    ? 'Solicitar transferencia interna'
-                    : 'Solicitar transferencia externa'}
+                    ? 'Ejecutar transferencia interna'
+                    : 'Enviar a aprobación (externa / internacional)'}
                 </button>
               </div>
             </div>
@@ -577,7 +586,7 @@ export default function SolicitudesPage() {
                       </div>
                       <p className="text-2xl font-mono text-nrlx-text">{formatearMoneda(sol.monto, sol.moneda)}</p>
                       <p className="text-[11px] text-nrlx-muted mt-1">
-                        {sol.tipo} · Origen {sol.nxg_origen || '—'}
+                        {etiquetaTipoSolicitud(sol.tipo)} · Origen {sol.nxg_origen || '—'}
                         {sol.nxg_destino ? ` · Destino ${sol.nxg_destino}` : ''}
                         {sol.id_cuenta_banco ? ` · Banco ${sol.id_cuenta_banco}` : ''}
                       </p>

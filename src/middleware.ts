@@ -10,5 +10,6 @@ export const config = {
     '/datos-bancarios/:path*',
     '/transferir/:path*',
     '/regulatorio/:path*',
+    '/admin/:path*',
   ],
 }

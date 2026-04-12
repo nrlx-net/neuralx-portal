@@ -3,6 +3,13 @@ import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 import { autoProvisionUser } from '@/lib/auto-provision'
 
+/** Filtros de UI → varios valores en BD (histórico + motor actual). */
+const ESTATUS_GRUPO: Record<string, string[]> = {
+  ejecutadas: ['ejecutada', 'completada'],
+  proceso: ['pendiente', 'en curso'],
+  rechazadas: ['rechazada', 'cancelada'],
+}
+
 export async function GET(request: Request) {
   const { error, upn, oid } = await requireAuth()
   if (error) return error
@@ -46,8 +53,15 @@ export async function GET(request: Request) {
     })
 
     if (estatus) {
-      query += ' AND estatus = @estatus'
-      req.input('estatus', estatus)
+      const grupo = ESTATUS_GRUPO[estatus]
+      if (grupo?.length) {
+        const ph = grupo.map((_, i) => `@est${i}`).join(', ')
+        query += ` AND estatus IN (${ph})`
+        grupo.forEach((v, i) => req.input(`est${i}`, v))
+      } else {
+        query += ' AND estatus = @estatus'
+        req.input('estatus', estatus)
+      }
     }
 
     query += ' ORDER BY fecha_hora DESC'
