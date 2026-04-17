@@ -48,13 +48,19 @@ export async function POST(request: Request) {
     }
     const admin = isAdminUpn(upn)
 
+    const origenDesdeExtra =
+      datos_extra && typeof datos_extra === 'object' && typeof datos_extra.origin_account_id === 'string'
+        ? datos_extra.origin_account_id
+        : null
+    const nxgOrigenFiltro = (nxg_origen || origenDesdeExtra || '').trim() || null
+
     const nxgReq = db.request().input('userId', user.id_usuario)
     let nxgQuery = admin
       ? 'SELECT TOP 1 nxg_id FROM cuentas_internas WHERE 1=1'
       : 'SELECT TOP 1 nxg_id FROM cuentas_internas WHERE id_usuario = @userId'
-    if (nxg_origen) {
+    if (nxgOrigenFiltro) {
       nxgQuery += ' AND nxg_id = @nxg_origen'
-      nxgReq.input('nxg_origen', nxg_origen)
+      nxgReq.input('nxg_origen', nxgOrigenFiltro)
     }
     nxgQuery += ' ORDER BY nxg_id'
     const nxgResult = await nxgReq.query(nxgQuery)
@@ -64,6 +70,28 @@ export async function POST(request: Request) {
     }
 
     const nxgOrigen = nxgResult.recordset[0].nxg_id
+
+    const transferInternaPura =
+      flow === 'transfer' &&
+      Boolean(nxg_destino) &&
+      !id_cuenta_banco &&
+      !beneficiario_id
+
+    let bancoResult: { recordset: Array<{ id_cuenta: string }> } = { recordset: [] }
+    if (!transferInternaPura) {
+      const bancoReq = db.request().input('userId', user.id_usuario)
+      let bancoQuery = 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
+      if (id_cuenta_banco) {
+        bancoQuery += ' AND id_cuenta = @id_cuenta_banco'
+        bancoReq.input('id_cuenta_banco', id_cuenta_banco)
+      }
+      bancoQuery += ' ORDER BY id_cuenta'
+      bancoResult = await bancoReq.query(bancoQuery)
+
+      if (bancoResult.recordset.length === 0) {
+        return NextResponse.json({ detail: 'Sin cuenta bancaria registrada' }, { status: 400 })
+      }
+    }
 
     if (flow === 'transfer') {
       const idLenResult = await db.request().query(`
