@@ -71,28 +71,6 @@ export async function POST(request: Request) {
 
     const nxgOrigen = nxgResult.recordset[0].nxg_id
 
-    const transferInternaPura =
-      flow === 'transfer' &&
-      Boolean(nxg_destino) &&
-      !id_cuenta_banco &&
-      !beneficiario_id
-
-    let bancoResult: { recordset: Array<{ id_cuenta: string }> } = { recordset: [] }
-    if (!transferInternaPura) {
-      const bancoReq = db.request().input('userId', user.id_usuario)
-      let bancoQuery = 'SELECT TOP 1 id_cuenta FROM cuentas_bancarias WHERE id_usuario = @userId'
-      if (id_cuenta_banco) {
-        bancoQuery += ' AND id_cuenta = @id_cuenta_banco'
-        bancoReq.input('id_cuenta_banco', id_cuenta_banco)
-      }
-      bancoQuery += ' ORDER BY id_cuenta'
-      bancoResult = await bancoReq.query(bancoQuery)
-
-      if (bancoResult.recordset.length === 0) {
-        return NextResponse.json({ detail: 'Sin cuenta bancaria registrada' }, { status: 400 })
-      }
-    }
-
     if (flow === 'transfer') {
       const idLenResult = await db.request().query(`
         SELECT CHARACTER_MAXIMUM_LENGTH AS max_len
