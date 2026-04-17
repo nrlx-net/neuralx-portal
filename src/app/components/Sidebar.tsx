@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -32,17 +32,6 @@ export function Sidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { data: session } = useSession()
   const pathname = usePathname()
-
-  const initials = useMemo(
-    () =>
-      (session?.user?.name || 'NN')
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((p) => p[0]?.toUpperCase() || '')
-        .join(''),
-    [session?.user?.name]
-  )
 
   return (
     <>
@@ -88,9 +77,11 @@ export function Sidebar() {
 
           <div className="border border-nrlx-border bg-nrlx-el rounded-xl p-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-nrlx-el2 border border-nrlx-border flex items-center justify-center text-xs font-mono text-nrlx-text">
-                {initials || 'NN'}
-              </div>
+              <img
+                src="https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/perfil_nrlx-net-logo2.png"
+                alt={session?.user?.name || 'Perfil'}
+                className="w-10 h-10 rounded-full border border-nrlx-border object-cover"
+              />
               <div className="min-w-0">
                 <p className="text-xs text-nrlx-text truncate">{session?.user?.name || 'Usuario'}</p>
                 <p className="text-[10px] font-mono text-nrlx-muted truncate mt-0.5">
