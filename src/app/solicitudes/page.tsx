@@ -164,9 +164,15 @@ export default function SolicitudesPage() {
 
   const origenSeleccionado = cuentasInternas.find((c) => c.id_cuenta === cuentaOrigen)
 
+  const montoNumerico = Number(monto)
+  const montoValido = Number.isFinite(montoNumerico) && montoNumerico > 0
+
   async function handleSubmit() {
     const montoNumber = Number(monto)
-    if (!montoNumber || montoNumber <= 0) return
+    if (!Number.isFinite(montoNumber) || montoNumber <= 0) {
+      setError('Ingresa un monto mayor a cero')
+      return
+    }
     if (!cuentaOrigen || !cuentaDestino) {
       setError('Selecciona cuenta origen y cuenta destino')
       return
@@ -515,11 +521,13 @@ export default function SolicitudesPage() {
 
                 <button
                   onClick={handleSubmit}
-                  disabled={!monto || submitting || status === 'loading' || !cuentaOrigen || !cuentaDestino}
+                  disabled={
+                    !montoValido || submitting || status === 'loading' || !cuentaOrigen || !cuentaDestino
+                  }
                   className={`w-full py-3 rounded-lg text-sm font-medium transition-all ${
                     submitting
                       ? 'bg-nrlx-accent/20 text-nrlx-accent border border-nrlx-accent/30'
-                      : !monto || !cuentaOrigen || !cuentaDestino
+                      : !montoValido || !cuentaOrigen || !cuentaDestino
                       ? 'bg-nrlx-card text-nrlx-muted border border-nrlx-border cursor-not-allowed'
                       : 'bg-nrlx-accent/10 text-nrlx-accent border border-nrlx-accent/30 hover:bg-nrlx-accent/20'
                   }`}
