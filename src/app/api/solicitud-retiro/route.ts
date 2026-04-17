@@ -2,7 +2,21 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 import { syncOperationalBalancesFromLedger } from '@/lib/ledger-sync'
+import { resolveLedgerAccountIdForNxg } from '@/lib/ledger-resolve'
 import { safeQueueTransferExternalCreated, safeQueueTransferInternalExecuted } from '@/lib/notification-outbox'
+
+function formatEngineRejectionDetail(txRaw: any): string {
+  const msg = [txRaw?.error_detail, txRaw?.message, txRaw?.Message]
+    .map((x) => (x != null && String(x).trim() !== '' ? String(x).trim() : null))
+    .find(Boolean)
+  const code = txRaw?.error_code != null ? String(txRaw.error_code) : ''
+  const step = txRaw?.error_step != null ? String(txRaw.error_step) : ''
+  const meta = [code && `code=${code}`, step && `step=${step}`].filter(Boolean).join(' ')
+  if (msg && meta) return `${msg} (${meta})`
+  if (msg) return msg
+  if (meta) return meta
+  return 'No se pudo ejecutar la transferencia interna'
+}
 
 function makeTransferRequestId(maxLen: number) {
   const now = new Date()
@@ -37,7 +51,8 @@ export async function POST(request: Request) {
       datos_extra,
     } = body
 
-    if (!monto || monto <= 0) {
+    const montoNumber = Number(monto)
+    if (!Number.isFinite(montoNumber) || montoNumber <= 0) {
       return NextResponse.json({ detail: 'Monto invalido' }, { status: 400 })
     }
 
@@ -105,33 +120,31 @@ export async function POST(request: Request) {
         }
         cuentaBanco = null
 
-        const ledgerOriginResult = await db.request()
-          .input('nxg_origen', nxgOrigen)
-          .query(`
-            SELECT TOP 1 ledger_account_id
-            FROM ledger_accounts
-            WHERE source_table = N'cuentas_internas'
-              AND source_account_id = @nxg_origen
-          `)
-        const ledgerDestinoResult = await db.request()
-          .input('nxg_destino', destinoNxg)
-          .query(`
-            SELECT TOP 1 ledger_account_id
-            FROM ledger_accounts
-            WHERE source_table = N'cuentas_internas'
-              AND source_account_id = @nxg_destino
-          `)
-
-        const originLedger = ledgerOriginResult.recordset[0]?.ledger_account_id
-        const destinationLedger = ledgerDestinoResult.recordset[0]?.ledger_account_id
+        const [originLedger, destinationLedger] = await Promise.all([
+          resolveLedgerAccountIdForNxg(db, nxgOrigen),
+          resolveLedgerAccountIdForNxg(db, destinoNxg),
+        ])
         if (!originLedger || !destinationLedger) {
-          return NextResponse.json({ detail: 'No se encontraron cuentas contables para ejecutar transferencia interna' }, { status: 500 })
+          const partes = [
+            !originLedger
+              ? `origen ${nxgOrigen}: sin fila en ledger (cuentas_internas; si es custodia NXG-000, cuenta_custodia/CUSTODIA-001)`
+              : null,
+            !destinationLedger ? `destino ${destinoNxg}: sin fila en ledger` : null,
+          ].filter(Boolean)
+          return NextResponse.json(
+            {
+              detail: `No se encontraron cuentas contables para ejecutar la transferencia interna · ${partes.join(
+                ' · '
+              )}`,
+            },
+            { status: 500 }
+          )
         }
 
         const engineResult = await db.request()
           .input('origin_ledger_account', originLedger)
           .input('destination_ledger_account', destinationLedger)
-          .input('amount_original', Number(monto))
+          .input('amount_original', montoNumber)
           .input('currency_original', moneda)
           .input('transaction_timestamp', null)
           .input('reference', referencia || `INT-${idSolicitud}`)
@@ -161,7 +174,7 @@ export async function POST(request: Request) {
         const txId = txRaw?.tx_id ? String(txRaw.tx_id) : null
         const txStatus = String(txRaw?.status || '').toUpperCase()
         if (!txId || txStatus === 'FAILED' || txStatus === 'REJECTED') {
-          return NextResponse.json({ detail: txRaw?.error_detail || 'No se pudo ejecutar la transferencia interna' }, { status: 500 })
+          return NextResponse.json({ detail: formatEngineRejectionDetail(txRaw) }, { status: 500 })
         }
 
         await syncOperationalBalancesFromLedger(db)
@@ -181,7 +194,7 @@ export async function POST(request: Request) {
           .input('nxg_origen', nxgOrigen)
           .input('nxg_destino', destinoNxg)
           .input('id_cuenta_banco', null)
-          .input('monto', monto)
+          .input('monto', montoNumber)
           .input('moneda', moneda)
           .input('concepto', concepto || 'Transferencia interna')
           .input('aprobado_por', user.id_usuario)
@@ -200,7 +213,7 @@ export async function POST(request: Request) {
           .input('id_transaccion', txId)
           .input('id_cuenta_origen', nxgOrigen)
           .input('id_cuenta_destino', destinoNxg)
-          .input('monto', monto)
+          .input('monto', montoNumber)
           .input('moneda', moneda)
           .input('tipo_transaccion', 'transferencia_interna')
           .input('concepto', concepto || 'Transferencia interna')
@@ -223,7 +236,7 @@ export async function POST(request: Request) {
           .input('id_usuario', user.id_usuario)
           .input('accion', 'TRANSFERENCIA_INTERNA_EJECUTADA')
           .input('registro_id', idSolicitud)
-          .input('detalle', `Transferencia interna ejecutada · TX ${txId} · ${monto} ${moneda}`)
+          .input('detalle', `Transferencia interna ejecutada · TX ${txId} · ${montoNumber} ${moneda}`)
           .query(`
             INSERT INTO audit_log (id_usuario, accion, tabla_afectada, registro_id, detalle)
             VALUES (@id_usuario, @accion, N'solicitudes', @registro_id, @detalle)
@@ -233,7 +246,7 @@ export async function POST(request: Request) {
           actorUserId: user.id_usuario,
           solicitudId: idSolicitud,
           txId,
-          monto: Number(monto),
+          monto: montoNumber,
           moneda: String(moneda),
           nxgOrigen: String(nxgOrigen),
           nxgDestino: String(destinoNxg),
@@ -243,7 +256,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
           exito: true,
           id_solicitud: idSolicitud,
-          monto,
+          monto: montoNumber,
           moneda,
           estatus: 'ejecutada',
           mensaje: 'Transferencia interna ejecutada correctamente.',
@@ -301,7 +314,7 @@ export async function POST(request: Request) {
         .input('nxg_origen', nxgOrigen)
         .input('nxg_destino', destinoNxg)
         .input('id_cuenta_banco', cuentaBanco)
-        .input('monto', monto)
+        .input('monto', montoNumber)
         .input('moneda', moneda)
         .input('concepto', concepto || 'Nuevo pago')
         .input('datos_extra', extraPayload ? JSON.stringify({ ...extraPayload, referencia: referencia || null }) : null)
@@ -319,7 +332,7 @@ export async function POST(request: Request) {
         .input('id_usuario', user.id_usuario)
         .input('accion', 'SOLICITUD_NUEVO_PAGO')
         .input('registro_id', idSolicitud)
-        .input('detalle', `Tipo: ${tipoSolicitud} · Monto: ${monto} ${moneda}`)
+        .input('detalle', `Tipo: ${tipoSolicitud} · Monto: ${montoNumber} ${moneda}`)
         .query(`
           INSERT INTO audit_log (id_usuario, accion, tabla_afectada, registro_id, detalle)
           VALUES (@id_usuario, @accion, N'solicitudes', @registro_id, @detalle)
@@ -328,7 +341,7 @@ export async function POST(request: Request) {
       await safeQueueTransferExternalCreated(db, {
         actorUserId: user.id_usuario,
         solicitudId: idSolicitud,
-        monto: Number(monto),
+        monto: montoNumber,
         moneda: String(moneda),
         nxgOrigen: String(nxgOrigen),
         bancoDestino: cuentaBanco || null,
@@ -338,7 +351,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         exito: true,
         id_solicitud: idSolicitud,
-        monto,
+        monto: montoNumber,
         moneda,
         estatus: 'pendiente',
         mensaje: 'Transferencia externa enviada para aprobación.',
@@ -364,7 +377,7 @@ export async function POST(request: Request) {
       .input('id_usuario', user.id_usuario)
       .input('nxg_origen', nxgOrigen)
       .input('id_cuenta_banco', idCuentaBanco)
-      .input('monto', monto)
+      .input('monto', montoNumber)
       .input('concepto', concepto || 'Transferencia a cuenta bancaria externa')
       .query('EXEC dbo.sp_solicitar_retiro_banco @id_usuario, @nxg_origen, @id_cuenta_banco, @monto, @concepto')
 
@@ -375,7 +388,7 @@ export async function POST(request: Request) {
       await safeQueueTransferExternalCreated(db, {
         actorUserId: user.id_usuario,
         solicitudId: String(idSolicitud),
-        monto: Number(monto),
+        monto: montoNumber,
         moneda: String(moneda),
         nxgOrigen: String(nxgOrigen),
         bancoDestino: String(idCuentaBanco),
@@ -386,7 +399,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       exito: result.exito ?? true,
       id_solicitud: idSolicitud,
-      monto,
+      monto: montoNumber,
       moneda,
       estatus: 'pendiente',
       mensaje: result.mensaje || 'Solicitud creada. Pendiente de aprobacion del administrador.',

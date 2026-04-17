@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar } from '../components/Sidebar'
 import { api, CuentaBancaria, CuentaBancariaVinculada, Solicitud, TransferRequestPayload } from '@/lib/api'
@@ -35,6 +35,7 @@ function getBankIconUrl(cuenta: CuentaBancariaVinculada) {
 
 export default function SolicitudesPage() {
   const { status } = useSession()
+  const appliedModoTabRef = useRef(false)
   const [cuentasInternas, setCuentasInternas] = useState<CuentaBancaria[]>([])
   const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancariaVinculada[]>([])
   const [tab, setTab] = useState<Tab>('pendientes')
@@ -58,6 +59,15 @@ export default function SolicitudesPage() {
       void loadInitialData()
     }
   }, [status])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || appliedModoTabRef.current) return
+    const modo = (new URLSearchParams(window.location.search).get('modo') || '').toLowerCase()
+    if (modo === 'interna') {
+      setTab('completadas')
+      appliedModoTabRef.current = true
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -194,7 +204,12 @@ export default function SolicitudesPage() {
       setFeedback(`Transferencia registrada correctamente (${result.id_solicitud || 'sin folio'}).`)
       setMonto('')
       setConcepto('')
-      await loadSolicitudes(tab)
+      if (transferMode === 'interna') {
+        setTab('completadas')
+        await loadSolicitudes('completadas')
+      } else {
+        await loadSolicitudes(tab)
+      }
     } catch (err: any) {
       setError(err.message || 'No se pudo registrar la transferencia')
     } finally {
@@ -304,6 +319,9 @@ export default function SolicitudesPage() {
               <div className="rounded-lg border border-nrlx-warning/30 bg-nrlx-warning/10 p-3">
                 <p className="text-[11px] text-nrlx-warning">
                   Selecciona cuentas validadas para evitar rechazos por datos incompletos.
+                  {transferMode === 'interna'
+                    ? ' Las internas exitosas quedan en estado ejecutada: revisa el filtro Completadas o Todas en el historial.'
+                    : ''}
                 </p>
               </div>
             </aside>
