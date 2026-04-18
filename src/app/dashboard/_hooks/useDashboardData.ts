@@ -1,10 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { api, CuentaBancaria, Solicitud, Transaccion } from '@/lib/api'
 import { calcularBalanceConsolidado } from '@/lib/balance'
 
 export function useDashboardData(ready: boolean) {
+  const { data: session } = useSession()
+  const sessionUserKey =
+    session?.user?.email || session?.user?.name || (session?.user as { id?: string } | undefined)?.id || ''
+
   const [cuentas, setCuentas] = useState<CuentaBancaria[]>([])
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
@@ -34,8 +39,9 @@ export function useDashboardData(ready: boolean) {
   }, [])
 
   useEffect(() => {
-    if (ready) void loadData()
-  }, [ready, loadData])
+    if (!ready || !sessionUserKey) return
+    void loadData()
+  }, [ready, sessionUserKey, loadData])
 
   const balance = useMemo(
     () =>

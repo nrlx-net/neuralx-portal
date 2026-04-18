@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 import { autoProvisionUser } from '@/lib/auto-provision'
+import { priorizarProcesoOrdenar, resolveEstatusGrupo } from '@/lib/movimiento-estatus'
 
-/** Filtros de UI → varios valores en BD (histórico + motor actual). */
-const ESTATUS_GRUPO: Record<string, string[]> = {
-  ejecutadas: ['ejecutada', 'completada'],
-  proceso: ['pendiente', 'en curso'],
-  rechazadas: ['rechazada', 'cancelada'],
-}
+const TOP_DEFAULT = 150
+const TOP_MAX = 520
+const DEFAULT_LIMIT_SIN_FILTRO = 200
+const DEFAULT_LIMIT_CON_FILTRO = 100
+const ABS_LIMIT_CAP = 200
 
 function parseEngineTxIdFromDatosExtra(raw: unknown): string | null {
   if (raw == null || typeof raw !== 'string') return null
@@ -46,6 +46,16 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const estatus = searchParams.get('estatus')
+  const offsetRaw = searchParams.get('offset')
+  const limitRaw = searchParams.get('limit')
+  const offset = Math.max(0, Math.floor(Number(offsetRaw ?? 0)) || 0)
+  const defaultLimit = estatus ? DEFAULT_LIMIT_CON_FILTRO : DEFAULT_LIMIT_SIN_FILTRO
+  let limit =
+    limitRaw == null || limitRaw === ''
+      ? defaultLimit
+      : Math.floor(Number(limitRaw)) || defaultLimit
+  limit = Math.min(ABS_LIMIT_CAP, Math.max(1, limit))
+  const sqlTop = Math.min(TOP_MAX, Math.max(TOP_DEFAULT, offset + limit + 80))
 
   try {
     const db = await getDb()
@@ -77,14 +87,20 @@ export async function GET(request: Request) {
 
     const cuentaIds = Array.from(cuentaIdSet)
     if (cuentaIds.length === 0) {
-      return NextResponse.json({ transacciones: [], total: 0 })
+      return NextResponse.json({
+        transacciones: [],
+        total: 0,
+        offset,
+        limit,
+        has_more: false,
+      })
     }
 
     const inOrigen = cuentaIds.map((_: any, i: number) => `@origen${i}`).join(',')
     const inDestino = cuentaIds.map((_: any, i: number) => `@destino${i}`).join(',')
 
     let query = `
-      SELECT TOP 60 id_transaccion, id_cuenta_origen, id_cuenta_destino,
+      SELECT TOP ${sqlTop} id_transaccion, id_cuenta_origen, id_cuenta_destino,
              fecha_hora, monto, moneda, tipo_transaccion, concepto,
              estatus, referencia
       FROM transacciones
@@ -98,13 +114,13 @@ export async function GET(request: Request) {
     })
 
     if (estatus) {
-      const grupo = ESTATUS_GRUPO[estatus]
+      const grupo = resolveEstatusGrupo(estatus)
       if (grupo?.length) {
         const ph = grupo.map((_, i) => `@est${i}`).join(', ')
-        query += ` AND estatus IN (${ph})`
-        grupo.forEach((v, i) => req.input(`est${i}`, v))
+        query += ` AND LOWER(LTRIM(RTRIM(estatus))) IN (${ph})`
+        grupo.forEach((v, i) => req.input(`est${i}`, String(v).toLowerCase().trim()))
       } else {
-        query += ' AND estatus = @estatus'
+        query += ' AND LOWER(LTRIM(RTRIM(estatus))) = LOWER(LTRIM(RTRIM(@estatus)))'
         req.input('estatus', estatus)
       }
     }
@@ -116,7 +132,7 @@ export async function GET(request: Request) {
     const engineTxnIds = new Set(txnRows.map((r) => String(r.id_transaccion || '')))
 
     let solQuery = `
-      SELECT TOP 60 id_solicitud, tipo, nxg_origen, nxg_destino, id_cuenta_banco, monto,
+      SELECT TOP ${sqlTop} id_solicitud, tipo, nxg_origen, nxg_destino, id_cuenta_banco, monto,
              moneda, concepto, estatus, comentario_admin, fecha_solicitud, datos_extra
       FROM solicitudes
       WHERE 1=1
@@ -127,13 +143,13 @@ export async function GET(request: Request) {
       solReq.input('userIdSol', user.id_usuario)
     }
     if (estatus) {
-      const grupo = ESTATUS_GRUPO[estatus]
+      const grupo = resolveEstatusGrupo(estatus)
       if (grupo?.length) {
         const ph = grupo.map((_, i) => `@sEst${i}`).join(', ')
-        solQuery += ` AND estatus IN (${ph})`
-        grupo.forEach((v, i) => solReq.input(`sEst${i}`, v))
+        solQuery += ` AND LOWER(LTRIM(RTRIM(estatus))) IN (${ph})`
+        grupo.forEach((v, i) => solReq.input(`sEst${i}`, String(v).toLowerCase().trim()))
       } else {
-        solQuery += ' AND estatus = @sEstatus'
+        solQuery += ' AND LOWER(LTRIM(RTRIM(estatus))) = LOWER(LTRIM(RTRIM(@sEstatus)))'
         solReq.input('sEstatus', estatus)
       }
     }
@@ -158,11 +174,33 @@ export async function GET(request: Request) {
       return tb - ta
     })
 
-    const transacciones = merged.slice(0, 50)
+    const ordered = estatus
+      ? (merged as Array<{ estatus: string; fecha_hora: string }>)
+      : priorizarProcesoOrdenar(merged as Array<{ estatus: string; fecha_hora: string }>)
+
+    const transacciones = ordered.slice(offset, offset + limit)
+    if (transacciones.length === 0) {
+      return NextResponse.json({
+        transacciones: [],
+        total: ordered.length,
+        offset,
+        limit,
+        has_more: false,
+      })
+    }
+
+    const hitTxnCap = txnRows.length >= sqlTop
+    const hitSolCap = solRows.length >= sqlTop
+    const gotFullPage = transacciones.length === limit
+    const has_more =
+      offset + transacciones.length < ordered.length || (gotFullPage && (hitTxnCap || hitSolCap))
 
     return NextResponse.json({
       transacciones,
-      total: transacciones.length,
+      total: ordered.length,
+      offset,
+      limit,
+      has_more,
     })
   } catch (err: any) {
     console.error('Error /api/transacciones:', err)

@@ -17,19 +17,28 @@ const FILTROS: Array<{ key: FiltroEstatus; label: string }> = [
   { key: 'rechazadas', label: 'Rechazadas / canceladas' },
 ]
 
+/** Tamaño de página en movimientos (paginación vía `api.getTransacciones`). */
+const MOV_PAGE = 40
+
 export default function MovimientosPage() {
-  const { status } = useSession()
+  const { status, data: session } = useSession()
+  const sessionUserKey =
+    session?.user?.email || session?.user?.name || (session?.user as { id?: string } | undefined)?.id || ''
   const [filter, setFilter] = useState<FiltroEstatus>('todos')
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [myNxgIds, setMyNxgIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [nextOffset, setNextOffset] = useState(0)
+  const [windowTotal, setWindowTotal] = useState(0)
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && sessionUserKey) {
       void loadData(filter)
     }
-  }, [status, filter])
+  }, [status, filter, sessionUserKey])
 
   async function loadData(currentFilter: FiltroEstatus) {
     try {
@@ -38,14 +47,42 @@ export default function MovimientosPage() {
       const estatusParam = currentFilter === 'todos' ? undefined : currentFilter
       const [cuentasRes, res] = await Promise.all([
         api.getCuentas(),
-        api.getTransacciones(estatusParam),
+        api.getTransacciones({
+          estatus: estatusParam,
+          offset: 0,
+          limit: MOV_PAGE,
+        }),
       ])
       setMyNxgIds(new Set(cuentasRes.cuentas.map((c) => c.id_cuenta)))
       setTransacciones(res.transacciones)
+      setNextOffset((res.offset ?? 0) + res.transacciones.length)
+      setHasMore(Boolean(res.has_more))
+      setWindowTotal(typeof res.total === 'number' ? res.total : res.transacciones.length)
     } catch (err: any) {
       setError(err.message || 'No se pudieron cargar los movimientos')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadMore() {
+    try {
+      setLoadingMore(true)
+      setError(null)
+      const estatusParam = filter === 'todos' ? undefined : filter
+      const res = await api.getTransacciones({
+        estatus: estatusParam,
+        offset: nextOffset,
+        limit: MOV_PAGE,
+      })
+      setTransacciones((prev) => [...prev, ...res.transacciones])
+      setNextOffset((res.offset ?? nextOffset) + res.transacciones.length)
+      setHasMore(Boolean(res.has_more))
+      if (typeof res.total === 'number') setWindowTotal(res.total)
+    } catch (err: any) {
+      setError(err.message || 'No se pudieron cargar más movimientos')
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -199,6 +236,30 @@ export default function MovimientosPage() {
               {transacciones.length === 0 && (
                 <div className="px-5 py-12 text-center text-sm text-nrlx-muted">
                   No hay movimientos con este filtro.
+                </div>
+              )}
+
+              {transacciones.length > 0 && (
+                <div className="px-5 py-4 border-t border-nrlx-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-[10px] font-mono text-nrlx-muted">
+                    {hasMore
+                      ? `${transacciones.length} movimiento${transacciones.length !== 1 ? 's' : ''} cargados; hay más disponibles.`
+                      : `${transacciones.length} movimiento${transacciones.length !== 1 ? 's' : ''} en esta vista${
+                          windowTotal > 0 && windowTotal !== transacciones.length
+                            ? ` (${windowTotal} en la ventana ordenada)`
+                            : ''
+                        }.`}
+                  </p>
+                  {hasMore && (
+                    <button
+                      type="button"
+                      onClick={() => void loadMore()}
+                      disabled={loadingMore}
+                      className="text-[10px] font-mono px-4 py-2 rounded-lg border border-nrlx-border bg-nrlx-el text-nrlx-text hover:border-nrlx-accent/40 disabled:opacity-50"
+                    >
+                      {loadingMore ? 'Cargando…' : 'Cargar más'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

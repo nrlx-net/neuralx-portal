@@ -6,6 +6,8 @@
 
 async function apiFetch<T = any>(endpoint: string, options?: RequestInit): Promise<T> {
   const res = await fetch(endpoint, {
+    credentials: 'include',
+    cache: 'no-store',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -73,7 +75,17 @@ export interface Transaccion {
 
 export interface TransaccionesResponse {
   transacciones: Transaccion[]
+  /** Filas en la ventana fusionada actual (puede ser menor que el total en BD). */
   total: number
+  offset?: number
+  limit?: number
+  has_more?: boolean
+}
+
+export type GetTransaccionesParams = {
+  estatus?: string
+  offset?: number
+  limit?: number
 }
 
 export interface Solicitud {
@@ -243,11 +255,27 @@ export const api = {
   getCuentas: (_token?: string) =>
     apiFetch<CuentasResponse>('/api/cuentas'),
 
-  getTransacciones: (arg1?: string, arg2?: string) => {
-    const estatus = arg2 ?? arg1
-    return apiFetch<TransaccionesResponse>(
-      `/api/transacciones${estatus ? `?estatus=${estatus}` : ''}`
-    )
+  getTransacciones: (arg1?: string | GetTransaccionesParams, arg2?: string) => {
+    let estatus: string | undefined
+    let offset: number | undefined
+    let limit: number | undefined
+    if (arg1 !== undefined && typeof arg1 === 'object' && arg1 !== null && !Array.isArray(arg1)) {
+      estatus = arg1.estatus
+      offset = arg1.offset
+      limit = arg1.limit
+    } else {
+      estatus = arg2 ?? (typeof arg1 === 'string' ? arg1 : undefined)
+    }
+    const params = new URLSearchParams()
+    if (estatus) params.set('estatus', estatus)
+    if (offset !== undefined && Number.isFinite(offset) && offset > 0) {
+      params.set('offset', String(Math.floor(offset)))
+    }
+    if (limit !== undefined && Number.isFinite(limit) && limit > 0) {
+      params.set('limit', String(Math.floor(limit)))
+    }
+    const qs = params.toString()
+    return apiFetch<TransaccionesResponse>(`/api/transacciones${qs ? `?${qs}` : ''}`)
   },
 
   crearSolicitudRetiro: (

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getUserByUpnOrEmail, isAdminUpn, requireAuth } from '@/lib/auth-helpers'
 import { autoProvisionUser } from '@/lib/auto-provision'
+import { resolveEstatusGrupo } from '@/lib/movimiento-estatus'
 
 export async function GET(request: Request) {
   const { error, upn, oid } = await requireAuth()
@@ -32,8 +33,18 @@ export async function GET(request: Request) {
       req.input('userId', user.id_usuario)
     }
     if (estatus) {
-      query += ' AND estatus = @estatus'
-      req.input('estatus', estatus)
+      const raw = estatus.trim()
+      const lower = raw.toLowerCase()
+      const mappedKey = lower === 'pendiente' ? 'proceso' : lower
+      const grupo = resolveEstatusGrupo(mappedKey)
+      if (grupo?.length) {
+        const ph = grupo.map((_, i) => `@sEst${i}`).join(', ')
+        query += ` AND LOWER(LTRIM(RTRIM(estatus))) IN (${ph})`
+        grupo.forEach((v, i) => req.input(`sEst${i}`, String(v).toLowerCase().trim()))
+      } else {
+        query += ' AND LOWER(LTRIM(RTRIM(estatus))) = LOWER(LTRIM(RTRIM(@estatus)))'
+        req.input('estatus', raw)
+      }
     }
     query += ' ORDER BY fecha_solicitud DESC'
 
