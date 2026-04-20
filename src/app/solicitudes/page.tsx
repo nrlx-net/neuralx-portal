@@ -28,6 +28,12 @@ const BANK_ICON_FALLBACKS: Record<string, string> = {
   banregio: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Banregio-icon.png',
 }
 
+const BANK_ICON_CODE_MAP: Record<string, { nombre: string; icono: string }> = {
+  bbva_mx: { nombre: 'BBVA', icono: BANK_ICON_FALLBACKS.bbva },
+  banamex_mx: { nombre: 'Banamex', icono: BANK_ICON_FALLBACKS.banamex },
+  banregio_mx: { nombre: 'Banregio', icono: BANK_ICON_FALLBACKS.banregio },
+}
+
 function etiquetaTipoSolicitud(tipo: string) {
   const t = (tipo || '').toLowerCase()
   if (t === 'transferencia_interna') return 'Transferencia entre mis cuentas'
@@ -42,6 +48,19 @@ function getBankIconUrl(cuenta: CuentaBancariaVinculada) {
   if (bank.includes('bbva')) return BANK_ICON_FALLBACKS.bbva
   if (bank.includes('banamex') || bank.includes('citibanamex')) return BANK_ICON_FALLBACKS.banamex
   if (bank.includes('banregio')) return BANK_ICON_FALLBACKS.banregio
+  return null
+}
+
+function resolveBankDisplay(raw: string | null | undefined) {
+  const value = String(raw || '').trim()
+  if (!value) return null
+  const lower = value.toLowerCase()
+  if (BANK_ICON_CODE_MAP[lower]) return BANK_ICON_CODE_MAP[lower]
+  if (lower.startsWith('http')) {
+    if (lower.includes('bbva')) return BANK_ICON_CODE_MAP.bbva_mx
+    if (lower.includes('banamex') || lower.includes('citibanamex')) return BANK_ICON_CODE_MAP.banamex_mx
+    if (lower.includes('banregio')) return BANK_ICON_CODE_MAP.banregio_mx
+  }
   return null
 }
 
@@ -624,7 +643,7 @@ export default function SolicitudesPage() {
               ) : (
                 <div className="space-y-3">
                   {historial.map((sol) => (
-                    <div
+                    <article
                       key={sol.id}
                       className="bg-nrlx-card border border-nrlx-border/50 rounded-lg p-4"
                     >
@@ -639,13 +658,36 @@ export default function SolicitudesPage() {
                       <p className="text-[11px] text-nrlx-muted mt-1">
                         {etiquetaTipoSolicitud(sol.tipo)} · Origen {sol.nxg_origen || '—'}
                         {sol.nxg_destino ? ` · Destino ${sol.nxg_destino}` : ''}
-                        {sol.id_cuenta_banco ? ` · Banco ${sol.id_cuenta_banco}` : ''}
+                        {sol.id_cuenta_banco && !resolveBankDisplay(sol.id_cuenta_banco)
+                          ? ' · Banco receptor'
+                          : ''}
                       </p>
+                      {sol.id_cuenta_banco && resolveBankDisplay(sol.id_cuenta_banco) && (
+                        <div className="mt-2 inline-flex items-center gap-2">
+                          <img
+                            src={resolveBankDisplay(sol.id_cuenta_banco)!.icono}
+                            alt={resolveBankDisplay(sol.id_cuenta_banco)!.nombre}
+                            className="w-4 h-4 rounded object-cover border border-nrlx-border"
+                          />
+                          <p className="text-[11px] text-nrlx-muted">
+                            Banco destino: <span className="text-nrlx-text">{resolveBankDisplay(sol.id_cuenta_banco)!.nombre}</span>
+                          </p>
+                        </div>
+                      )}
                       <p className="text-xs text-nrlx-muted mt-1">{sol.concepto || '—'}</p>
                       <p className="text-[10px] font-mono text-nrlx-muted mt-2">
                         Registro: {new Date(sol.fecha).toLocaleDateString('es-MX')}
                       </p>
-                    </div>
+                      <details className="mt-2 lg:hidden">
+                        <summary className="cursor-pointer text-[11px] text-nrlx-accent select-none">
+                          Ver detalle
+                        </summary>
+                        <div className="mt-2 text-[11px] text-nrlx-muted space-y-1">
+                          <p>ID: <span className="text-nrlx-text break-all">{sol.id}</span></p>
+                          <p>Estatus: <span className="text-nrlx-text">{sol.estatus}</span></p>
+                        </div>
+                      </details>
+                    </article>
                   ))}
                 </div>
               )}

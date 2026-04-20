@@ -59,6 +59,12 @@ function resumirCuenta(raw: string | null | undefined) {
   return `${value.slice(0, 8)}…${value.slice(-6)}`
 }
 
+function formatDateTime(value: string) {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString('es-MX')
+}
+
 export default function MovimientosPage() {
   const { status, data: session } = useSession()
   const sessionUserKey =
@@ -173,7 +179,7 @@ export default function MovimientosPage() {
             </div>
           ) : (
             <div className="bg-nrlx-surface border border-nrlx-border rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-nrlx-border">
@@ -282,6 +288,65 @@ export default function MovimientosPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="md:hidden space-y-3 p-3">
+                {transacciones.map((txn) => {
+                  const sign = movementSignForUser(txn, myNxgIds)
+                  const isOut = sign === 'debit'
+                  const isNeutral = sign === 'neutral'
+                  const bancoDestino = resolverBancoDestino(txn.id_cuenta_destino)
+                  return (
+                    <article key={txn.id_transaccion} className="rounded-xl border border-nrlx-border bg-nrlx-card p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[10px] font-mono text-nrlx-muted break-all">{txn.id_transaccion}</p>
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0 ${
+                            ['ejecutada', 'completada'].includes((txn.estatus || '').toLowerCase())
+                              ? 'bg-nrlx-accent/10 text-nrlx-accent'
+                              : ['pendiente', 'pending', 'en curso'].includes((txn.estatus || '').toLowerCase()) ||
+                                (txn.estatus || '').toLowerCase().includes('curso')
+                              ? 'bg-nrlx-warning/10 text-nrlx-warning'
+                              : 'bg-nrlx-danger/10 text-nrlx-danger'
+                          }`}
+                        >
+                          {labelEstatusMovimiento(txn.estatus)}
+                        </span>
+                      </div>
+
+                      <p className="text-2xl font-mono text-nrlx-text mt-2">
+                        {isNeutral ? '' : isOut ? '-' : '+'}
+                        {formatearMoneda(txn.monto, txn.moneda)}
+                      </p>
+                      <p className="text-xs text-nrlx-text mt-1">{txn.concepto || '—'}</p>
+                      <p className="text-[11px] text-nrlx-muted mt-1">{labelTipoTransaccion(txn.tipo_transaccion)}</p>
+                      <p className="text-[10px] font-mono text-nrlx-muted mt-2">
+                        {formatDateTime(txn.fecha_hora)}
+                      </p>
+
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-[11px] text-nrlx-accent select-none">
+                          Ver detalle
+                        </summary>
+                        <div className="mt-2 text-[11px] text-nrlx-muted space-y-1">
+                          <p>Origen: <span className="text-nrlx-text">{resumirCuenta(txn.id_cuenta_origen)}</span></p>
+                          {bancoDestino ? (
+                            <div className="inline-flex items-center gap-2">
+                              <img
+                                src={bancoDestino.icono}
+                                alt={bancoDestino.nombre}
+                                className="w-4 h-4 rounded object-cover border border-nrlx-border"
+                              />
+                              <p>Banco destino: <span className="text-nrlx-text">{bancoDestino.nombre}</span></p>
+                            </div>
+                          ) : (
+                            <p>Destino: <span className="text-nrlx-text">{resumirCuenta(txn.id_cuenta_destino)}</span></p>
+                          )}
+                        </div>
+                      </details>
+                    </article>
+                  )
+                })}
               </div>
 
               {transacciones.length === 0 && (
