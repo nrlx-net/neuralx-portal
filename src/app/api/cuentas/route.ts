@@ -54,39 +54,10 @@ export async function GET() {
       }))
     )
 
-    let saldoConsolidado = balance.total_mxn
-    if (admin) {
-      const custodia = await db.request().query(`
-        SELECT TOP 1 saldo_total, saldo_disponible, saldo_asignado
-        FROM cuenta_custodia
-        WHERE id_custodia = N'CUSTODIA-001'
-      `)
-      const row = custodia.recordset[0]
-      if (row?.saldo_total !== undefined && row?.saldo_total !== null) {
-        saldoConsolidado = Number(row.saldo_total || 0)
-        const hasCustodiaCard = cuentas.some((c: any) => c.id_cuenta === 'NXG-000')
-        if (!hasCustodiaCard) {
-          cuentas.unshift({
-            id_cuenta: 'NXG-000',
-            banco: 'NeuralX Custodia',
-            numero_cuenta: 'CUSTODIA-001',
-            swift_code: null,
-            moneda: 'MXN',
-            saldo_total: Number(row.saldo_total || 0),
-            saldo_disponible: Number(row.saldo_disponible || 0),
-            saldo_retenido: Number(row.saldo_asignado || 0),
-            tipo_cuenta: 'Custodia',
-            icono_banco_url: null,
-            titular: 'Custodia Principal',
-          })
-        }
-      }
-    }
-
     return NextResponse.json({
       cuentas,
       total_cuentas: cuentas.length,
-      saldo_consolidado: saldoConsolidado,
+      saldo_consolidado: balance.total_mxn,
     })
   } catch (err: any) {
     console.error('Error /api/cuentas:', err)

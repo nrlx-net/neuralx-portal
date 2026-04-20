@@ -38,6 +38,7 @@ interface SelectedTarget {
 interface TransferFlowProps {
   open: boolean
   onClose: () => void
+  onCompleted?: () => void
 }
 
 const BANK_ICON_FALLBACKS: Record<string, string> = {
@@ -55,7 +56,7 @@ function getBankIconUrl(cuenta: CuentaBancariaVinculada) {
   return null
 }
 
-export function TransferFlow({ open, onClose }: TransferFlowProps) {
+export function TransferFlow({ open, onClose, onCompleted }: TransferFlowProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -191,6 +192,7 @@ export function TransferFlow({ open, onClose }: TransferFlowProps) {
       }
       setSuccess(true)
       setStep(3)
+      onCompleted?.()
     } catch (err: any) {
       setError(err.message || 'No se pudo enviar la solicitud')
     } finally {

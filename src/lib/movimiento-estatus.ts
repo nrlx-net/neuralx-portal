@@ -3,9 +3,9 @@
  * Comparaciones SQL deben usar LOWER(TRIM(...)) para tolerar mayúsculas/espacios.
  */
 export const ESTATUS_GRUPO: Record<string, string[]> = {
-  ejecutadas: ['ejecutada', 'completada'],
-  proceso: ['pendiente', 'en curso', 'en_curso'],
-  rechazadas: ['rechazada', 'cancelada'],
+  ejecutadas: ['ejecutada', 'completada', 'settled', 'completed'],
+  proceso: ['pendiente', 'pending', 'en curso', 'en_curso', 'processing', 'in progress', 'in_progress'],
+  rechazadas: ['rechazada', 'cancelada', 'rejected', 'failed'],
 }
 
 export function resolveEstatusGrupo(estatus: string | null | undefined): string[] | null {
@@ -19,7 +19,10 @@ export function resolveEstatusGrupo(estatus: string | null | undefined): string[
 export function isProcesoEstatus(estatus: string | null | undefined): boolean {
   const s = (estatus || '').toLowerCase().replace(/_/g, ' ').trim()
   if (s === 'pendiente') return true
+  if (s === 'pending') return true
   if (s === 'en curso') return true
+  if (s === 'processing') return true
+  if (s === 'in progress') return true
   if (s.includes('curso')) return true
   return false
 }

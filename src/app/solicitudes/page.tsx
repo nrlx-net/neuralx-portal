@@ -3,12 +3,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar } from '../components/Sidebar'
-import { api, CuentaBancaria, CuentaBancariaVinculada, Solicitud, TransferRequestPayload } from '@/lib/api'
+import { api, CuentaBancaria, CuentaBancariaVinculada, Transaccion, TransferRequestPayload } from '@/lib/api'
 import { ArrowRightLeft, Building2, CheckCircle2, Clock3, RefreshCw, Search, Wallet, XCircle } from 'lucide-react'
 import { formatearMoneda } from '@/lib/balance'
 
 type Tab = 'pendientes' | 'completadas' | 'rechazadas' | 'todas'
 type TransferMode = 'interna' | 'externa'
+type HistorialTransferencia = {
+  id: string
+  tipo: string
+  nxg_origen: string | null
+  nxg_destino: string | null
+  id_cuenta_banco: string | null
+  monto: number
+  moneda: string
+  concepto: string | null
+  estatus: string
+  fecha: string
+}
 
 const BANK_ICON_FALLBACKS: Record<string, string> = {
   bbva: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/BBVA-icon.jpeg',
@@ -33,6 +45,22 @@ function getBankIconUrl(cuenta: CuentaBancariaVinculada) {
   return null
 }
 
+function mapTransaccionAHistorial(tx: Transaccion): HistorialTransferencia {
+  const destino = tx.id_cuenta_destino ? String(tx.id_cuenta_destino) : null
+  return {
+    id: String(tx.id_transaccion),
+    tipo: String(tx.tipo_transaccion || 'transferencia'),
+    nxg_origen: tx.id_cuenta_origen ? String(tx.id_cuenta_origen) : null,
+    nxg_destino: destino && destino.startsWith('NXG-') ? destino : null,
+    id_cuenta_banco: destino && !destino.startsWith('NXG-') ? destino : null,
+    monto: Number(tx.monto || 0),
+    moneda: String(tx.moneda || 'MXN'),
+    concepto: tx.concepto ? String(tx.concepto) : null,
+    estatus: String(tx.estatus || ''),
+    fecha: String(tx.fecha_hora),
+  }
+}
+
 export default function SolicitudesPage() {
   const { status } = useSession()
   const appliedModoTabRef = useRef(false)
@@ -51,7 +79,7 @@ export default function SolicitudesPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
+  const [historial, setHistorial] = useState<HistorialTransferencia[]>([])
   const [searchDestino, setSearchDestino] = useState('')
 
   useEffect(() => {
@@ -84,11 +112,11 @@ export default function SolicitudesPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      void loadSolicitudes(tab)
+      void loadHistorial(tab)
     }
   }, [tab, status])
 
-  async function loadInitialData() {
+  async function loadInitialData(tabToLoad: Tab = tab) {
     try {
       setLoading(true)
       setError(null)
@@ -105,7 +133,7 @@ export default function SolicitudesPage() {
       if (bancarias.cuentas[0]) {
         setCuentaDestino(bancarias.cuentas[0].id_cuenta)
       }
-      await loadSolicitudes(tab)
+      await loadHistorial(tabToLoad)
     } catch (err: any) {
       setError(err.message || 'No se pudo cargar la información inicial')
     } finally {
@@ -113,19 +141,19 @@ export default function SolicitudesPage() {
     }
   }
 
-  async function loadSolicitudes(currentTab: Tab) {
+  async function loadHistorial(currentTab: Tab) {
     try {
       setLoadingHistorial(true)
-      const estatus =
+      const estatusGrupo =
         currentTab === 'pendientes'
-          ? 'pendiente'
+          ? 'proceso'
           : currentTab === 'completadas'
-          ? 'ejecutada'
+          ? 'ejecutadas'
           : currentTab === 'rechazadas'
-          ? 'rechazada'
+          ? 'rechazadas'
           : undefined
-      const res = await api.getSolicitudes(estatus)
-      setSolicitudes(res.solicitudes)
+      const res = await api.getTransacciones({ estatus: estatusGrupo, limit: 200 })
+      setHistorial((res.transacciones || []).map(mapTransaccionAHistorial))
     } catch (err: any) {
       setError(err.message || 'No se pudo cargar el historial')
     } finally {
@@ -210,12 +238,9 @@ export default function SolicitudesPage() {
       setFeedback(`Transferencia registrada correctamente (${result.id_solicitud || 'sin folio'}).`)
       setMonto('')
       setConcepto('')
-      if (transferMode === 'interna') {
-        setTab('completadas')
-        await loadSolicitudes('completadas')
-      } else {
-        await loadSolicitudes(tab)
-      }
+      const nextTab: Tab = transferMode === 'interna' ? 'completadas' : tab
+      if (transferMode === 'interna') setTab('completadas')
+      await loadInitialData(nextTab)
     } catch (err: any) {
       setError(err.message || 'No se pudo registrar la transferencia')
     } finally {
@@ -547,7 +572,7 @@ export default function SolicitudesPage() {
                   HISTORIAL DE TRANSFERENCIAS
                 </h2>
                 <button
-                  onClick={() => loadSolicitudes(tab)}
+                  onClick={() => loadHistorial(tab)}
                   className="w-8 h-8 rounded-lg border border-nrlx-border bg-nrlx-el text-nrlx-muted inline-flex items-center justify-center"
                 >
                   <RefreshCw size={14} />
@@ -579,7 +604,7 @@ export default function SolicitudesPage() {
                 <div className="text-center py-12">
                   <p className="text-sm text-nrlx-muted">Cargando transferencias...</p>
                 </div>
-              ) : solicitudes.length === 0 ? (
+              ) : historial.length === 0 ? (
                 <div className="text-center py-12">
                   <svg
                     width="74"
@@ -598,15 +623,15 @@ export default function SolicitudesPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {solicitudes.map((sol) => (
+                  {historial.map((sol) => (
                     <div
-                      key={sol.id_solicitud}
+                      key={sol.id}
                       className="bg-nrlx-card border border-nrlx-border/50 rounded-lg p-4"
                     >
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2">
                           <StatusIcon status={sol.estatus} />
-                          <p className="text-[10px] font-mono text-nrlx-muted">{sol.id_solicitud}</p>
+                          <p className="text-[10px] font-mono text-nrlx-muted">{sol.id}</p>
                         </div>
                         <StatusBadge status={sol.estatus} />
                       </div>
@@ -618,16 +643,8 @@ export default function SolicitudesPage() {
                       </p>
                       <p className="text-xs text-nrlx-muted mt-1">{sol.concepto || '—'}</p>
                       <p className="text-[10px] font-mono text-nrlx-muted mt-2">
-                        Registro: {new Date(sol.fecha_solicitud).toLocaleDateString('es-MX')}
+                        Registro: {new Date(sol.fecha).toLocaleDateString('es-MX')}
                       </p>
-                      {sol.fecha_resolucion && (
-                        <p className="text-[10px] font-mono text-nrlx-muted mt-1">
-                          Resolución: {new Date(sol.fecha_resolucion).toLocaleDateString('es-MX')}
-                        </p>
-                      )}
-                      {sol.comentario_admin && (
-                        <p className="text-xs italic text-nrlx-muted mt-2">{sol.comentario_admin}</p>
-                      )}
                     </div>
                   ))}
                 </div>

@@ -41,6 +41,14 @@ export default function DashboardPage() {
     () => roleLabelFromUpn(session?.user?.upn || session?.user?.email || null),
     [session?.user?.email, session?.user?.upn]
   )
+  const operacionesPendientes = useMemo(
+    () =>
+      transacciones.filter((tx) => {
+        const status = String(tx.estatus || '').toLowerCase().replace(/_/g, ' ').trim()
+        return status === 'pendiente' || status === 'pending' || status === 'en curso' || status === 'processing' || status === 'in progress'
+      }),
+    [transacciones]
+  )
 
   useEffect(() => {
     if (!ready) return
@@ -171,10 +179,13 @@ export default function DashboardPage() {
             <p className="text-[11px] font-mono text-nrlx-muted mb-2">
               {esAdmin ? 'OPERACIONES PENDIENTES (GLOBAL)' : 'TUS OPERACIONES PENDIENTES'}
             </p>
-            <p className="text-2xl font-mono text-nrlx-text">{solicitudes.length}</p>
+            <p className="text-2xl font-mono text-nrlx-text">{operacionesPendientes.length}</p>
             <p className="text-xs text-nrlx-muted mb-3">
-              Transferencias externas o internacionales en espera de aprobación. Las internas NXG se ejecutan al
-              instante.
+              Pendientes en historial transaccional (incluye estados `pending`/`pendiente`). Las internas NXG solo
+              mueven saldos MXN en cuentas internas.
+            </p>
+            <p className="text-[11px] text-nrlx-muted mb-3">
+              Solicitudes administrativas pendientes: {solicitudes.length}
             </p>
             <Link
               href="/transferir"
@@ -195,7 +206,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <TransferFlow open={transferOpen} onClose={() => setTransferOpen(false)} />
+      <TransferFlow
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        onCompleted={() => {
+          void loadData()
+        }}
+      />
       <BankDataSheet open={bankDataOpen} onClose={() => setBankDataOpen(false)} />
       <InviteAccessDrawer open={inviteOpen} onClose={() => setInviteOpen(false)} />
     </div>
