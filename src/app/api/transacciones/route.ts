@@ -21,20 +21,33 @@ function pickString(row: Record<string, any>, keys: string[]): string | null {
 }
 
 function transactionsRowToTransaccion(row: Record<string, any>) {
+  const referenciaSeed = pickString(row, ['referencia_seed', 'reference_seed'])
+  const beneficiario = pickString(row, ['beneficiario', 'beneficiary_name', 'beneficiary'])
+  const feeUsd = Number(row.fee_usd ?? row.fee ?? 0)
+  const montoUsd = Number(row.monto_usd ?? row.amount_usd ?? row.amount ?? row.amount_original ?? 0)
+  const totalLiberarUsd = Number(row.total_liberar_usd ?? row.total_release_usd ?? 0)
   const id =
+    referenciaSeed ||
     pickString(row, ['id_transaccion', 'transaction_id', 'tx_id', 'id']) ||
     `tx-legacy-${Math.random().toString(36).slice(2, 10)}`
-  const origin = pickString(row, ['id_cuenta_origen', 'origin_account_id', 'from_account_id', 'origen']) || '—'
-  const destination = pickString(row, ['id_cuenta_destino', 'destination_account_id', 'to_account_id', 'destino'])
+  const origin =
+    pickString(row, ['id_cuenta_origen', 'origin_account_id', 'from_account_id', 'origen', 'partner_user_id']) ||
+    '—'
+  const destination =
+    pickString(row, ['id_cuenta_destino', 'destination_account_id', 'to_account_id', 'destino', 'bank_icon']) ||
+    null
   const fecha =
     pickString(row, ['fecha_hora', 'created_at', 'createdAt', 'transaction_date', 'timestamp']) ||
     new Date().toISOString()
-  const tipo = pickString(row, ['tipo_transaccion', 'transaction_type', 'type']) || 'transferencia'
+  const tipo = pickString(row, ['tipo_transaccion', 'transaction_type', 'type']) || 'transferencia_externa'
   const status = pickString(row, ['estatus', 'status']) || ''
-  const referencia = pickString(row, ['referencia', 'reference'])
-  const concepto = pickString(row, ['concepto', 'description', 'memo'])
-  const moneda = pickString(row, ['moneda', 'currency']) || 'USD'
-  const montoRaw = row.monto ?? row.amount ?? row.amount_original ?? 0
+  const referencia = referenciaSeed || pickString(row, ['referencia', 'reference'])
+  const concepto =
+    pickString(row, ['concepto', 'description', 'memo']) ||
+    beneficiario ||
+    (referenciaSeed ? `Transferencia ${referenciaSeed}` : 'Transferencia')
+  const moneda = pickString(row, ['moneda', 'currency']) || (montoUsd > 0 || totalLiberarUsd > 0 ? 'USD' : 'MXN')
+  const montoRaw = totalLiberarUsd > 0 ? totalLiberarUsd : montoUsd + (feeUsd > 0 ? feeUsd : 0)
 
   return {
     id_transaccion: id,

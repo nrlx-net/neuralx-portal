@@ -217,7 +217,7 @@ export default function MovimientosPage() {
                               className={`text-[10px] font-mono px-2 py-0.5 rounded-full inline-block ${
                                 ['ejecutada', 'completada'].includes((txn.estatus || '').toLowerCase())
                                   ? 'bg-nrlx-accent/10 text-nrlx-accent'
-                                  : ['pendiente', 'en curso'].includes((txn.estatus || '').toLowerCase()) ||
+                                  : ['pendiente', 'pending', 'en curso'].includes((txn.estatus || '').toLowerCase()) ||
                                     (txn.estatus || '').toLowerCase().includes('curso')
                                   ? 'bg-nrlx-warning/10 text-nrlx-warning'
                                   : 'bg-nrlx-danger/10 text-nrlx-danger'

@@ -27,7 +27,7 @@ export function labelTipoTransaccion(tipo: string | null | undefined) {
 export function labelEstatusMovimiento(estatus: string | null | undefined) {
   const s = (estatus || '').toLowerCase().trim()
   if (s === 'ejecutada' || s === 'completada') return 'Ejecutada'
-  if (s === 'pendiente') return 'Pendiente'
+  if (s === 'pendiente' || s === 'pending') return 'Pendiente'
   if (s === 'en curso' || s === 'en_curso') return 'En curso'
   if (s === 'rechazada' || s === 'cancelada') return s === 'cancelada' ? 'Cancelada' : 'Rechazada'
   return estatus || '—'
