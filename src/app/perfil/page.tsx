@@ -117,19 +117,19 @@ export default function PerfilPage() {
           <section className="grid grid-cols-2 gap-3">
             <div className="rounded-xl border border-nrlx-border bg-nrlx-surface p-3">
               <CreditCard size={16} className="text-nrlx-accent mb-2" />
-              <p className="text-xs text-nrlx-text">Socio Activo</p>
+              <p className="text-xs text-nrlx-text">Titular</p>
               <p className="text-[11px] text-nrlx-muted">Desde {formatDate(user?.created_at || user?.fecha_conexion || null)}</p>
             </div>
             <div className="rounded-xl border border-nrlx-border bg-nrlx-surface p-3">
               <UserPlus size={16} className="text-nrlx-accent mb-2" />
-              <p className="text-xs text-nrlx-text">Procesos Regulatorios</p>
+              <p className="text-xs text-nrlx-text">Cumplimiento</p>
               <p className="text-[11px] text-nrlx-muted">{procesos.length} activos</p>
             </div>
           </section>
           <section className="rounded-xl border border-nrlx-border bg-nrlx-surface p-3">
             <p className="text-xs text-nrlx-text">Saldo consolidado</p>
             <p className="text-lg font-mono text-nrlx-accent mt-1">{formatearMoneda(saldoConsolidado, 'MXN')}</p>
-            <p className="text-[11px] text-nrlx-muted mt-1">Consolidado operativo del perfil autenticado</p>
+            <p className="text-[11px] text-nrlx-muted mt-1">Saldo consolidado</p>
           </section>
 
           <MenuGroup

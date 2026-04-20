@@ -48,8 +48,8 @@ export function InviteAccessDrawer({ open, onClose }: InviteAccessDrawerProps) {
     <SlideOver
       open={open}
       onClose={closeAndReset}
-      title="Invitar operador"
-      description="Alta de usuario operativo y preparación de acceso institucional"
+      title="Invitar usuario"
+      description="Alta de nuevo usuario"
       footer={
         <button
           onClick={submitInvite}
@@ -67,7 +67,7 @@ export function InviteAccessDrawer({ open, onClose }: InviteAccessDrawerProps) {
     >
       <div className="rounded-xl border border-nrlx-border bg-nrlx-el px-3 py-2 mb-4">
         <p className="text-[11px] text-nrlx-muted">
-          Este flujo deja listo el onboarding operativo. Cuando el backend de invitaciones esté habilitado,
+          Este formulario deja preparado el alta del usuario. Cuando el backend de invitaciones esté habilitado,
           este formulario puede enlazarse sin cambios de UI.
         </p>
       </div>
@@ -89,13 +89,13 @@ export function InviteAccessDrawer({ open, onClose }: InviteAccessDrawerProps) {
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="operador@neuralxglobal.net"
+              placeholder="nombre@neuralxglobal.net"
               className="w-full bg-transparent text-sm text-nrlx-text placeholder:text-nrlx-muted focus:outline-none"
             />
           </div>
         </label>
         <label className="block">
-          <span className="text-[11px] font-mono text-nrlx-muted">Rol operativo</span>
+          <span className="text-[11px] font-mono text-nrlx-muted">Rol</span>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}

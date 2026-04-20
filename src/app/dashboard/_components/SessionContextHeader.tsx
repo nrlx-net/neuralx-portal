@@ -1,14 +1,12 @@
 'use client'
 
-import { ShieldCheck, User } from 'lucide-react'
-
 interface SessionContextHeaderProps {
   name?: string | null
   upn?: string | null
-  roleLabel: string
+  roleLabel?: string
 }
 
-export function SessionContextHeader({ name, upn, roleLabel }: SessionContextHeaderProps) {
+export function SessionContextHeader({ name, upn }: SessionContextHeaderProps) {
   return (
     <section className="rounded-2xl border border-nrlx-border bg-nrlx-surface p-4">
       <div className="flex items-center justify-between gap-3">
@@ -23,14 +21,6 @@ export function SessionContextHeader({ name, upn, roleLabel }: SessionContextHea
             <p className="text-[11px] text-nrlx-muted truncate">{upn || 'sin-upn'}</p>
           </div>
         </div>
-        <div className="inline-flex items-center gap-1 rounded-full border border-nrlx-border bg-nrlx-el px-2.5 py-1 text-[10px] text-nrlx-muted shrink-0">
-          <ShieldCheck size={12} className="text-nrlx-accent" />
-          {roleLabel}
-        </div>
-      </div>
-      <div className="mt-3 flex items-center gap-2 text-[11px] text-nrlx-muted">
-        <User size={12} />
-        Contexto de sesión activo en entidad operativa NeuralX Global
       </div>
     </section>
   )

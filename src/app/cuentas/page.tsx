@@ -48,7 +48,7 @@ export default function CuentasPage() {
       <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 pb-20 lg:pb-0">
         <div className="p-6 lg:p-8 max-w-5xl">
           <div className="mb-8 pt-2 lg:pt-0">
-            <h1 className="text-2xl font-medium text-nrlx-text">Cuentas internas</h1>
+            <h1 className="text-2xl font-medium text-nrlx-text">Mis cuentas</h1>
             <p className="text-xs text-nrlx-muted mt-1">
               {cuentas.length} cuenta{cuentas.length !== 1 ? 's' : ''} registrada{cuentas.length !== 1 ? 's' : ''}
             </p>

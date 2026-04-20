@@ -209,8 +209,8 @@ export function TransferFlow({ open, onClose, onCompleted }: TransferFlowProps) 
     <SlideOver
       open={open}
       onClose={resetAndClose}
-      title="Transferencia operativa"
-      description="Internas NXG al instante; externas o internacionales con revisión administrativa."
+      title="Transferencia"
+      description="Las transferencias entre cuentas se ejecutan de inmediato; las externas o internacionales requieren aprobación."
       footer={
         <div className="flex items-center gap-2 text-[11px] text-nrlx-muted">
           <span className="inline-flex items-center gap-1 rounded-full border border-nrlx-border bg-nrlx-el px-2 py-1">
@@ -256,13 +256,13 @@ export function TransferFlow({ open, onClose, onCompleted }: TransferFlowProps) 
               </div>
 
               <div className="grid grid-cols-4 gap-2 mb-4">
-                <MethodCard icon={ArrowLeftRight} label="NXG Interno" onClick={() => setQuery('NXG-')} />
+                <MethodCard icon={ArrowLeftRight} label="Entre cuentas" onClick={() => setQuery('NXG-')} />
                 <MethodCard icon={Building2} label="Banco" onClick={() => { setNewMode('particular'); setShowAddForm(true) }} />
                 <MethodCard icon={Globe} label="Internacional" onClick={() => { setNewMode('empresa'); setShowAddForm(true) }} />
                 <MethodCard icon={Plus} label="Nuevo" onClick={() => { setNewMode('particular'); setShowAddForm(true) }} />
               </div>
 
-              <p className="text-[11px] font-mono text-nrlx-muted mb-2">Cuentas internas de socios</p>
+              <p className="text-[11px] font-mono text-nrlx-muted mb-2">Mis cuentas</p>
               <div className="space-y-2 mb-4">
                 {cuentasInternasDestino.slice(0, 8).map((c) => (
                   <button

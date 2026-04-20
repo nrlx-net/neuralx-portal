@@ -16,7 +16,7 @@ export function RecentActivityPanel({ transacciones, myNxgIds = [] }: RecentActi
   return (
     <section className="rounded-2xl border border-nrlx-border bg-nrlx-surface p-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-mono text-nrlx-muted">ACTIVIDAD RECIENTE</p>
+        <p className="text-[11px] font-mono text-nrlx-muted">MOVIMIENTOS RECIENTES</p>
         <Link href="/movimientos" className="text-xs text-nrlx-accent hover:underline">
           Ver movimientos
         </Link>
@@ -41,7 +41,7 @@ export function RecentActivityPanel({ transacciones, myNxgIds = [] }: RecentActi
                       {isNeutral ? <ArrowLeftRight size={13} /> : isOut ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs text-nrlx-text truncate">{txn.concepto || 'Movimiento operativo'}</p>
+                      <p className="text-xs text-nrlx-text truncate">{txn.concepto || 'Movimiento'}</p>
                       <p className="text-[10px] text-nrlx-muted">
                         {new Date(txn.fecha_hora).toLocaleString('es-MX')}
                       </p>

@@ -115,7 +115,7 @@ export default function AdminAprobacionesPage() {
           Solo administradores pueden aprobar transferencias externas o internacionales pendientes.
         </p>
         <Link href="/dashboard" className="text-sm text-nrlx-accent hover:underline">
-          Volver al panel de operaciones
+          Volver a Inicio
         </Link>
       </div>
     )
@@ -125,10 +125,10 @@ export default function AdminAprobacionesPage() {
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-medium text-nrlx-text">Aprobaciones operativas</h1>
+          <h1 className="text-xl md:text-2xl font-medium text-nrlx-text">Aprobaciones pendientes</h1>
           <p className="text-xs text-nrlx-muted mt-1 max-w-xl">
-            Transferencias a bancos externos o internacionales que requieren validación antes de ejecutarse.
-            Las transferencias internas NXG entre socios se liquidan al instante y no aparecen aquí.
+            Transferencias pendientes de aprobación.
+            Las transferencias entre cuentas se liquidan de inmediato y no aparecen aquí.
           </p>
         </div>
         <button
@@ -149,7 +149,7 @@ export default function AdminAprobacionesPage() {
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-nrlx-border bg-nrlx-surface p-10 text-center text-sm text-nrlx-muted">
-          No hay operaciones pendientes de aprobación.
+          No hay transferencias pendientes de aprobación.
         </div>
       ) : (
         <div className="space-y-4">

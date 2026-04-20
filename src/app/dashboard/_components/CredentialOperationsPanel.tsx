@@ -10,9 +10,9 @@ interface CredentialOperationsPanelProps {
 export function CredentialOperationsPanel({ onInvite }: CredentialOperationsPanelProps) {
   return (
     <section className="rounded-2xl border border-nrlx-border bg-nrlx-surface p-4">
-      <p className="text-[11px] font-mono text-nrlx-muted mb-2">ACCESO Y CREDENCIALES</p>
+      <p className="text-[11px] font-mono text-nrlx-muted mb-2">CREDENCIALES</p>
       <p className="text-xs text-nrlx-muted mb-3">
-        Gestiona emisión de credenciales verificadas y alta de usuarios operativos.
+        Emite credenciales y gestiona usuarios.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <Link
@@ -27,7 +27,7 @@ export function CredentialOperationsPanel({ onInvite }: CredentialOperationsPane
           className="h-10 rounded-xl border border-nrlx-border bg-nrlx-el text-sm text-nrlx-muted hover:text-nrlx-text inline-flex items-center justify-center gap-2"
         >
           <UserPlus size={14} />
-          Invitar operador
+          Invitar usuario
         </button>
       </div>
     </section>

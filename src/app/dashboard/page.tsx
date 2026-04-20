@@ -19,9 +19,9 @@ import { api, Notificacion } from '@/lib/api'
 function roleLabelFromUpn(upn?: string | null) {
   const value = (upn || '').toLowerCase().trim()
   if (value === 'malvarez@neuralxglobal.net' || value === 'neuralx@neuralxglobal.net') {
-    return 'Administrador global'
+    return 'Administrador'
   }
-  return 'Operador institucional'
+  return ''
 }
 
 export default function DashboardPage() {
@@ -95,7 +95,7 @@ export default function DashboardPage() {
   return (
     <div className="max-w-6xl mx-auto animate-fade-up">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl md:text-2xl font-medium text-nrlx-text">Panel de operaciones</h1>
+        <h1 className="text-xl md:text-2xl font-medium text-nrlx-text">Inicio</h1>
         <button
           onClick={() => void loadData()}
           className="h-9 px-3 rounded-xl border border-nrlx-border bg-nrlx-el text-xs text-nrlx-muted inline-flex items-center gap-2"
@@ -177,7 +177,7 @@ export default function DashboardPage() {
           </section>
           <section className="rounded-2xl border border-nrlx-border bg-nrlx-surface p-4">
             <p className="text-[11px] font-mono text-nrlx-muted mb-2">
-              {esAdmin ? 'OPERACIONES PENDIENTES (GLOBAL)' : 'TUS OPERACIONES PENDIENTES'}
+              {esAdmin ? 'TRANSFERENCIAS PENDIENTES (GLOBAL)' : 'TUS TRANSFERENCIAS PENDIENTES'}
             </p>
             <p className="text-2xl font-mono text-nrlx-text">{operacionesPendientes.length}</p>
             <p className="text-xs text-nrlx-muted mb-3">
@@ -185,7 +185,7 @@ export default function DashboardPage() {
               mueven saldos MXN en cuentas internas.
             </p>
             <p className="text-[11px] text-nrlx-muted mb-3">
-              Solicitudes administrativas pendientes: {solicitudes.length}
+              Transferencias administrativas pendientes: {solicitudes.length}
             </p>
             <Link
               href="/transferir"
@@ -198,7 +198,7 @@ export default function DashboardPage() {
                 href="/admin/aprobaciones"
                 className="h-10 rounded-xl border border-nrlx-accent/40 bg-nrlx-accent/10 text-sm text-nrlx-accent hover:bg-nrlx-accent/15 inline-flex items-center justify-center w-full"
               >
-                Panel de aprobaciones
+                Aprobaciones
               </Link>
             )}
           </section>

@@ -88,9 +88,9 @@ export default function CredencialesOperacionesPage() {
   return (
     <div className="max-w-3xl mx-auto animate-fade-up">
       <div className="mb-6">
-        <h1 className="text-2xl font-medium text-nrlx-text">Credenciales verificadas</h1>
+        <h1 className="text-2xl font-medium text-nrlx-text">Credenciales</h1>
         <p className="text-xs text-nrlx-muted mt-1">
-          Emisión de la credencial institucional de operaciones (Verified ID)
+          Emisión de credencial corporativa (Verified ID)
         </p>
       </div>
 

@@ -30,7 +30,7 @@ const BANK_ICON_FALLBACKS: Record<string, string> = {
 
 function etiquetaTipoSolicitud(tipo: string) {
   const t = (tipo || '').toLowerCase()
-  if (t === 'transferencia_interna') return 'Transferencia interna NXG'
+  if (t === 'transferencia_interna') return 'Transferencia entre mis cuentas'
   if (t === 'transferencia_externa') return 'Transferencia externa / internacional'
   if (t.includes('retiro')) return 'Salida a cuenta bancaria'
   return tipo || 'Operación'
@@ -256,9 +256,9 @@ export default function SolicitudesPage() {
           <div className="mb-8 pt-2 lg:pt-0">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h1 className="text-2xl font-medium text-nrlx-text">Transferencias operativas</h1>
+                <h1 className="text-2xl font-medium text-nrlx-text">Transferencias</h1>
                 <p className="text-xs text-nrlx-muted mt-1">
-                  Internas NXG se ejecutan al instante. Externas o internacionales quedan pendientes hasta aprobación
+                  Las transferencias entre tus cuentas se ejecutan de inmediato. Externas o internacionales quedan pendientes hasta aprobación
                   del administrador.
                 </p>
               </div>
@@ -287,7 +287,7 @@ export default function SolicitudesPage() {
           <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
             <aside className="bg-nrlx-surface border border-nrlx-border rounded-xl p-4 h-fit">
               <h2 className="text-xs font-mono text-nrlx-muted tracking-wider mb-3">
-                CENTRO DE TRANSFERENCIAS
+                TRANSFERENCIAS
               </h2>
               <div className="space-y-2 mb-4">
                 <button
@@ -432,7 +432,7 @@ export default function SolicitudesPage() {
                     type="text"
                     value={concepto}
                     onChange={(e) => setConcepto(e.target.value)}
-                    placeholder={transferMode === 'interna' ? 'Descripción de la transferencia interna' : 'Descripción de la transferencia externa'}
+                    placeholder="Descripción de la transferencia"
                     className="w-full bg-nrlx-card border border-nrlx-border rounded-lg px-4 py-3 text-sm text-nrlx-text placeholder:text-nrlx-muted/40 focus:border-nrlx-accent/40 focus:outline-none transition-colors"
                   />
                 </div>
@@ -560,8 +560,8 @@ export default function SolicitudesPage() {
                   {submitting
                     ? 'Enviando...'
                     : transferMode === 'interna'
-                    ? 'Ejecutar transferencia interna'
-                    : 'Enviar a aprobación (externa / internacional)'}
+                    ? 'Transferir'
+                    : 'Enviar transferencia'}
                 </button>
               </div>
             </div>

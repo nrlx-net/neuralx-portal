@@ -81,7 +81,7 @@ export function BankDataSheet({ open, onClose }: BankDataSheetProps) {
           </p>
         ) : (
           <>
-            <p className="text-[11px] font-mono text-nrlx-muted mb-2">Cuentas internas</p>
+            <p className="text-[11px] font-mono text-nrlx-muted mb-2">Mis cuentas</p>
             <div className="space-y-2 mb-4">
               {cuentasInternas.map((cuenta) => (
                 <div key={cuenta.id_cuenta} className="rounded-xl border border-nrlx-border bg-nrlx-el p-3">

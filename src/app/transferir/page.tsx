@@ -14,7 +14,7 @@ export default function TransferirPage() {
             <div className="w-10 h-10 rounded-full border border-nrlx-border bg-nrlx-el flex items-center justify-center mb-3 text-nrlx-accent">
               <ArrowLeftRight size={18} />
             </div>
-            <h1 className="text-xl text-nrlx-text mb-2">Transferencias operativas</h1>
+            <h1 className="text-xl text-nrlx-text mb-2">Transferencias</h1>
             <p className="text-sm text-nrlx-muted">
               Opera transferencias internas entre cuentas NXG y transferencias externas a bancos desde un flujo unificado, con registro y trazabilidad.
             </p>

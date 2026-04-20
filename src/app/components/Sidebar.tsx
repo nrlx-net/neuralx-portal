@@ -42,7 +42,7 @@ export function Sidebar() {
             alt="NeuralX"
             className="h-8 w-auto object-contain"
           />
-          <p className="text-[10px] font-mono text-nrlx-muted tracking-[0.28em] mt-2">GLOBAL PORTAL</p>
+          <p className="text-[10px] font-mono text-nrlx-muted tracking-[0.28em] mt-2">PORTAL DE SOCIOS</p>
         </div>
 
         <nav className="px-3 py-4 space-y-1">
@@ -68,10 +68,10 @@ export function Sidebar() {
 
         <div className="mt-auto px-4 pb-4 space-y-3">
           <div className="border border-nrlx-border bg-nrlx-el rounded-xl px-3 py-2">
-            <p className="text-[10px] font-mono tracking-wider text-nrlx-muted mb-2">SISTEMA OPERATIVO</p>
+            <p className="text-[10px] font-mono tracking-wider text-nrlx-muted mb-2">SISTEMA</p>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-nrlx-success animate-pulse-dot" />
-              <span className="text-[11px] text-nrlx-text">Online</span>
+              <span className="text-[11px] text-nrlx-text">Conectado</span>
             </div>
           </div>
 
