@@ -20,6 +20,45 @@ const FILTROS: Array<{ key: FiltroEstatus; label: string }> = [
 /** Tamaño de página en movimientos (paginación vía `api.getTransacciones`). */
 const MOV_PAGE = 40
 
+const BANK_ICON_CODE_MAP: Record<string, { nombre: string; icono: string }> = {
+  bbva_mx: {
+    nombre: 'BBVA',
+    icono: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/BBVA-icon.jpeg',
+  },
+  banamex_mx: {
+    nombre: 'Banamex',
+    icono: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Banamex-icon.jpeg',
+  },
+  banregio_mx: {
+    nombre: 'Banregio',
+    icono: 'https://pub-0096ef66aa784fc09207634c34c5baaa.r2.dev/Banregio-icon.png',
+  },
+}
+
+function resolverBancoDestino(rawDestino: string | null | undefined) {
+  const value = String(rawDestino || '').trim()
+  if (!value) return null
+  const lower = value.toLowerCase()
+
+  if (BANK_ICON_CODE_MAP[lower]) {
+    return BANK_ICON_CODE_MAP[lower]
+  }
+  if (lower.startsWith('http')) {
+    if (lower.includes('bbva')) return BANK_ICON_CODE_MAP.bbva_mx
+    if (lower.includes('banamex') || lower.includes('citibanamex')) return BANK_ICON_CODE_MAP.banamex_mx
+    if (lower.includes('banregio')) return BANK_ICON_CODE_MAP.banregio_mx
+    return { nombre: 'Banco receptor', icono: value }
+  }
+  return null
+}
+
+function resumirCuenta(raw: string | null | undefined) {
+  const value = String(raw || '').trim()
+  if (!value) return '—'
+  if (value.length <= 18) return value
+  return `${value.slice(0, 8)}…${value.slice(-6)}`
+}
+
 export default function MovimientosPage() {
   const { status, data: session } = useSession()
   const sessionUserKey =
@@ -166,6 +205,7 @@ export default function MovimientosPage() {
                       const sign = movementSignForUser(txn, myNxgIds)
                       const isOut = sign === 'debit'
                       const isNeutral = sign === 'neutral'
+                      const bancoDestino = resolverBancoDestino(txn.id_cuenta_destino)
                       return (
                         <tr
                           key={txn.id_transaccion}
@@ -181,10 +221,21 @@ export default function MovimientosPage() {
                             {labelTipoTransaccion(txn.tipo_transaccion)}
                           </td>
                           <td className="px-5 py-4">
-                            <p className="text-xs text-nrlx-text">{txn.id_cuenta_origen}</p>
-                            <p className="text-[10px] font-mono text-nrlx-muted">
-                              → {txn.id_cuenta_destino || '—'}
-                            </p>
+                            <p className="text-xs text-nrlx-text">{resumirCuenta(txn.id_cuenta_origen)}</p>
+                            {bancoDestino ? (
+                              <div className="mt-1 inline-flex items-center gap-2">
+                                <img
+                                  src={bancoDestino.icono}
+                                  alt={bancoDestino.nombre}
+                                  className="w-4 h-4 rounded object-cover border border-nrlx-border"
+                                />
+                                <p className="text-[10px] font-mono text-nrlx-muted">→ {bancoDestino.nombre}</p>
+                              </div>
+                            ) : (
+                              <p className="text-[10px] font-mono text-nrlx-muted">
+                                → {resumirCuenta(txn.id_cuenta_destino)}
+                              </p>
+                            )}
                           </td>
                           <td className="px-5 py-4 text-sm text-nrlx-text max-w-[200px] truncate">
                             {txn.concepto || '—'}
