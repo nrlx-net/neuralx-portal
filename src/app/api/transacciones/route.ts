@@ -10,6 +10,46 @@ const DEFAULT_LIMIT_SIN_FILTRO = 200
 const DEFAULT_LIMIT_CON_FILTRO = 100
 const ABS_LIMIT_CAP = 200
 
+function pickString(row: Record<string, any>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = row[key]
+    if (value != null && String(value).trim() !== '') {
+      return String(value)
+    }
+  }
+  return null
+}
+
+function transactionsRowToTransaccion(row: Record<string, any>) {
+  const id =
+    pickString(row, ['id_transaccion', 'transaction_id', 'tx_id', 'id']) ||
+    `tx-legacy-${Math.random().toString(36).slice(2, 10)}`
+  const origin = pickString(row, ['id_cuenta_origen', 'origin_account_id', 'from_account_id', 'origen']) || '—'
+  const destination = pickString(row, ['id_cuenta_destino', 'destination_account_id', 'to_account_id', 'destino'])
+  const fecha =
+    pickString(row, ['fecha_hora', 'created_at', 'createdAt', 'transaction_date', 'timestamp']) ||
+    new Date().toISOString()
+  const tipo = pickString(row, ['tipo_transaccion', 'transaction_type', 'type']) || 'transferencia'
+  const status = pickString(row, ['estatus', 'status']) || ''
+  const referencia = pickString(row, ['referencia', 'reference'])
+  const concepto = pickString(row, ['concepto', 'description', 'memo'])
+  const moneda = pickString(row, ['moneda', 'currency']) || 'USD'
+  const montoRaw = row.monto ?? row.amount ?? row.amount_original ?? 0
+
+  return {
+    id_transaccion: id,
+    id_cuenta_origen: origin,
+    id_cuenta_destino: destination,
+    fecha_hora: fecha,
+    monto: Number(montoRaw || 0),
+    moneda,
+    tipo_transaccion: tipo,
+    concepto,
+    estatus: status,
+    referencia,
+  }
+}
+
 function parseEngineTxIdFromDatosExtra(raw: unknown): string | null {
   if (raw == null || typeof raw !== 'string') return null
   try {
@@ -129,7 +169,33 @@ export async function GET(request: Request) {
 
     const txnResult = await req.query(query)
     const txnRows: Record<string, any>[] = txnResult.recordset || []
-    const engineTxnIds = new Set(txnRows.map((r) => String(r.id_transaccion || '')))
+    let externalRows: Record<string, any>[] = []
+    try {
+      const txReq = db.request()
+      let txQuery = `SELECT TOP ${sqlTop} * FROM transactions WHERE 1=1`
+      if (!admin) {
+        txQuery += ' AND CAST(partner_user_id AS NVARCHAR(255)) = @partnerUserId'
+        txReq.input('partnerUserId', String(user.id_usuario))
+      }
+      if (estatus) {
+        const grupo = resolveEstatusGrupo(estatus)
+        if (grupo?.length) {
+          const ph = grupo.map((_, i) => `@txStatus${i}`).join(', ')
+          txQuery += ` AND LOWER(LTRIM(RTRIM(CAST(status AS NVARCHAR(60))))) IN (${ph})`
+          grupo.forEach((v, i) => txReq.input(`txStatus${i}`, String(v).toLowerCase().trim()))
+        } else {
+          txQuery += ' AND LOWER(LTRIM(RTRIM(CAST(status AS NVARCHAR(60))))) = LOWER(LTRIM(RTRIM(@txStatus)))'
+          txReq.input('txStatus', estatus)
+        }
+      }
+      const txResult = await txReq.query(txQuery)
+      externalRows = (txResult.recordset || []).map(transactionsRowToTransaccion)
+    } catch {
+      externalRows = []
+    }
+
+    const txnCombined = [...txnRows, ...externalRows]
+    const engineTxnIds = new Set(txnCombined.map((r) => String(r.id_transaccion || '')))
 
     let solQuery = `
       SELECT TOP ${sqlTop} id_solicitud, tipo, nxg_origen, nxg_destino, id_cuenta_banco, monto,
@@ -168,7 +234,13 @@ export async function GET(request: Request) {
       })
       .map((row) => solicitudRowToTransaccion(row))
 
-    const merged = [...txnRows, ...fromSolicitudes].sort((a, b) => {
+    const dedupMap = new Map<string, Record<string, any>>()
+    for (const row of txnCombined) {
+      const id = String(row.id_transaccion || '')
+      if (!id) continue
+      if (!dedupMap.has(id)) dedupMap.set(id, row)
+    }
+    const merged = [...Array.from(dedupMap.values()), ...fromSolicitudes].sort((a, b) => {
       const ta = new Date(a.fecha_hora).getTime()
       const tb = new Date(b.fecha_hora).getTime()
       return tb - ta
@@ -189,7 +261,7 @@ export async function GET(request: Request) {
       })
     }
 
-    const hitTxnCap = txnRows.length >= sqlTop
+    const hitTxnCap = txnRows.length >= sqlTop || externalRows.length >= sqlTop
     const hitSolCap = solRows.length >= sqlTop
     const gotFullPage = transacciones.length === limit
     const has_more =
